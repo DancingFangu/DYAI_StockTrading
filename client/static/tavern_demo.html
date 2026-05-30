@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>🃏 股票大亨 · 地下交易酒馆</title>
+<style>
+/* ============ 骗子酒馆 视觉令牌 ============ */
+:root{
+  --bg:#1a130d; --wood:#2b1f14; --leather:#3a2a1c; --felt:#1e3a2f;
+  --candle:#e8b563; --brass:#c9a86a; --text:#e8dcc8; --dim:#8a7a64;
+  --up:#d9534f; --down:#5cb85c; --rare-gold:#ffcf6b; --rare-purple:#b06bd6;
+  --fac-def:#5b8db8; --fac-agg:#c0392b; --fac-inf:#8e44ad;
+  --fac-trd:#27ae60; --fac-evt:#e67e22; --fac-qnt:#95a5a6;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  color:var(--text); background:var(--bg); overflow:hidden;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 38%, rgba(232,181,99,.16), transparent 70%),
+    radial-gradient(ellipse 120% 90% at 50% 50%, transparent 40%, rgba(0,0,0,.7) 100%),
+    repeating-linear-gradient(90deg,#241a10,#241a10 3px,#2b1f14 3px,#2b1f14 6px);
+}
+.pixel{image-rendering:pixelated}
+button{font-family:inherit;cursor:pointer;color:var(--text)}
+.brass-border{border:1px solid var(--brass)}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--leather);border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* 烛光呼吸 */
+@keyframes flicker{0%,100%{opacity:.95}45%{opacity:.82}70%{opacity:1}}
+.candle-overlay{position:fixed;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(ellipse 50% 40% at 50% 35%, rgba(232,181,99,.10), transparent 65%);
+  animation:flicker 5s ease-in-out infinite}
+
+/* ============ 通用按钮 ============ */
+.btn{padding:10px 22px;border:1px solid var(--brass);border-radius:7px;
+  background:linear-gradient(180deg,#3a2a1c,#2b1f14);color:var(--text);
+  font-size:.95rem;transition:.18s;letter-spacing:1px}
+.btn:hover{background:linear-gradient(180deg,#4a3725,#3a2a1c);box-shadow:0 0 14px rgba(232,181,99,.3)}
+.btn-primary{background:linear-gradient(180deg,#e8b563,#c9912f);color:#241a10;font-weight:bold;border-color:#f0c97a}
+.btn-primary:hover{box-shadow:0 0 20px rgba(232,181,99,.5)}
+.btn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+.btn-buy{border-color:var(--up);color:#f2b8b3}
+.btn-sell{border-color:var(--down);color:#bfe6bf}
+
+/* ============ 准备界面 ============ */
+#prep{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:22px;padding:24px}
+#prep h1{font-size:2.6rem;color:var(--candle);text-shadow:0 2px 12px rgba(232,181,99,.4);letter-spacing:4px}
+#prep .sub{color:var(--dim);letter-spacing:2px;margin-top:-10px}
+.prep-panel{background:rgba(43,31,20,.85);border:1px solid var(--brass);border-radius:14px;padding:26px 32px;max-width:760px;width:100%;backdrop-filter:blur(2px)}
+.prep-row{display:flex;justify-content:space-between;align-items:center;margin:14px 0;font-size:1.05rem}
+.bank-num{color:var(--candle);font-weight:bold;font-size:1.3rem;font-variant-numeric:tabular-nums}
+.bring-val{color:var(--rare-gold);font-weight:bold;font-variant-numeric:tabular-nums}
+input[type=range]{flex:1;margin:0 16px;accent-color:var(--candle)}
+.fac-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.fac-card{border:1px solid var(--leather);border-radius:10px;padding:14px 10px;text-align:center;background:rgba(26,19,13,.6);transition:.18s}
+.fac-card:hover{transform:translateY(-3px);border-color:var(--brass)}
+.fac-card.sel{border-color:var(--candle);box-shadow:0 0 16px rgba(232,181,99,.4);background:rgba(58,42,28,.8)}
+.fac-card .ic{font-size:2rem}
+.fac-card .nm{font-weight:bold;margin:6px 0 2px}
+.fac-card .ds{font-size:.74rem;color:var(--dim);line-height:1.35}
+
+/* ============ 游戏主界面 ============ */
+#game{position:fixed;inset:0;z-index:2;display:none;grid-template-rows:48px 1fr 152px;grid-template-columns:228px 1fr 312px;
+  grid-template-areas:"hud hud hud" "ai center cards" "hud2 hand hand"}
+#game.on{display:grid}
+
+/* HUD */
+.hud{grid-area:hud;display:flex;align-items:center;gap:18px;padding:0 18px;
+  background:linear-gradient(180deg,#3a2a1c,#241a10);border-bottom:1px solid var(--brass);font-size:.9rem}
+.hud .logo{color:var(--candle);font-weight:bold;letter-spacing:2px}
+.hud .seg{color:var(--dim)}
+.hud .seg b{color:var(--text)}
+.hud .cash{color:var(--candle);font-variant-numeric:tabular-nums}
+.ap-dots{display:inline-flex;gap:4px;vertical-align:middle}
+.ap-dot{width:11px;height:11px;border-radius:50%;border:1px solid var(--brass);background:transparent}
+.ap-dot.on{background:var(--candle);box-shadow:0 0 6px var(--candle)}
+.hud .spacer{flex:1}
+.phase-pill{padding:3px 12px;border:1px solid var(--brass);border-radius:20px;color:var(--candle);font-size:.82rem}
+
+/* 左：AI 剧场 */
+.ai-stage{grid-area:ai;position:relative;border-right:1px solid var(--leather);padding:8px 0;overflow:visible}
+.ai-row{display:flex;align-items:center;height:calc((100% - 0px)/6);padding-left:10px}
+.ai-sprite{position:relative;width:64px;height:64px;flex:0 0 auto;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;font-size:2rem;
+  border:2px solid var(--leather);background:radial-gradient(circle at 50% 35%,#3a2a1c,#241a10);
+  transition:.2s;animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.ai-sprite .name{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);
+  font-size:.62rem;color:var(--dim);white-space:nowrap;font-family:monospace}
+.ai-sprite .pnl{position:absolute;top:-12px;right:-8px;font-size:.6rem;font-variant-numeric:tabular-nums}
+.ai-sprite.speaking{border-color:var(--candle);box-shadow:0 0 16px rgba(232,181,99,.55);transform:translateX(3px) scale(1.05);animation:none}
+.ai-sprite.selectable{cursor:pointer;border-color:var(--rare-gold);animation:pulse 1.1s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 4px var(--rare-gold)}50%{box-shadow:0 0 18px var(--rare-gold)}}
+.ai-sprite.dim{filter:grayscale(.6) opacity(.45);animation:none}
+.ai-sprite.investigated::after{content:'✔';position:absolute;top:-6px;left:-6px;font-size:.7rem;
+  background:var(--down);color:#13230f;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+/* 发言泳道：贴近 AI 头像 */
+.bubble{position:absolute;left:82px;width:288px;z-index:6;
+  background:rgba(30,22,16,.97);border:1px solid var(--brass);border-radius:9px;padding:10px 13px;
+  font-size:.82rem;line-height:1.5;box-shadow:0 6px 20px rgba(0,0,0,.5);transition:top .3s}
+.bubble::before{content:'';position:absolute;left:-9px;top:22px;border:5px solid transparent;border-right-color:var(--brass)}
+.bubble b{color:var(--candle)}
+.bubble .rv{font-size:.66rem;color:var(--dim);display:block;margin-top:4px}
+
+/* 中：主区 */
+.center{grid-area:center;overflow-y:auto;padding:14px 18px}
+.news-card{background:linear-gradient(180deg,#332518,#241a10);border:1px solid var(--brass);border-left:4px solid var(--candle);
+  border-radius:9px;padding:14px 16px;margin-bottom:14px;position:relative}
+.news-card .tag{font-size:.7rem;color:var(--dim);letter-spacing:2px}
+.news-card .hint{font-size:.76rem;color:var(--dim);font-style:italic;margin-top:8px}
+.news-item{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px dashed rgba(201,168,106,.18);font-size:1rem;line-height:1.5}
+.news-item:last-of-type{border-bottom:none}
+.news-item .bull{color:var(--candle);flex:0 0 auto}
+.news-item .txt{flex:1}
+.news-item .real{flex:0 0 auto;font-size:.68rem;padding:1px 7px;border-radius:10px;align-self:center}
+.news-item .real.t{background:rgba(92,184,92,.18);color:var(--down);border:1px solid var(--down)}
+.news-item .real.f{background:rgba(217,83,79,.18);color:var(--up);border:1px solid var(--up)}
+.news-quiet{color:var(--dim);font-style:italic;padding:10px 2px}
+.section-t{font-size:.78rem;color:var(--dim);letter-spacing:3px;margin:6px 0 8px}
+.stock-tbl{width:100%;border-collapse:collapse;font-size:.86rem}
+.stock-tbl th{text-align:left;color:var(--dim);font-weight:normal;font-size:.74rem;padding:4px 8px;border-bottom:1px solid var(--leather)}
+.stock-tbl td{padding:7px 8px;border-bottom:1px solid rgba(58,42,28,.5);font-variant-numeric:tabular-nums}
+.stock-tbl tr{cursor:pointer;transition:.12s}
+.stock-tbl tr:hover td{background:rgba(58,42,28,.4)}
+.stock-tbl tr.sel td{background:rgba(232,181,99,.1)}
+.code{font-family:monospace;color:var(--dim)}
+.up{color:var(--up)} .down{color:var(--down)}
+.kline-mini{display:inline-flex;align-items:flex-end;gap:1px;height:18px}
+.kline-mini i{width:3px;background:var(--dim);display:inline-block}
+.pos-tag{font-size:.7rem;color:var(--candle)}
+
+/* 右：候选卡 */
+.cards-zone{grid-area:cards;border-left:1px solid var(--leather);padding:14px 12px;overflow-y:auto;
+  background:linear-gradient(180deg,rgba(30,58,47,.18),transparent)}
+.cards-zone h3{font-size:.82rem;color:var(--dim);letter-spacing:2px;text-align:center;margin-bottom:12px}
+.cand-list{display:flex;flex-direction:column;gap:11px;align-items:center}
+.card{width:150px;border-radius:11px;padding:11px;position:relative;transition:.18s;
+  background:linear-gradient(165deg,#3a2a1c,#241a10);border:1px solid var(--leather)}
+.card:hover{transform:translateY(-4px) rotateZ(-.6deg);box-shadow:0 8px 22px rgba(0,0,0,.5)}
+.card.picked{border-color:var(--candle);box-shadow:0 0 14px rgba(232,181,99,.4)}
+.card .top{display:flex;justify-content:space-between;font-size:.78rem}
+.card .ic{font-size:1.7rem;text-align:center;margin:6px 0}
+.card .nm{font-weight:bold;text-align:center;font-size:.92rem}
+.card .ds{font-size:.72rem;color:var(--dim);text-align:center;line-height:1.4;margin-top:4px;min-height:30px}
+.card .ap{color:var(--candle);font-size:.72rem}
+.card .star{color:var(--rare-gold);font-size:.72rem}
+.card.fac-mark{border-top:3px solid var(--brass)}
+.cand-cta{text-align:center;margin-top:14px}
+.cand-note{text-align:center;color:var(--dim);font-size:.8rem;padding:30px 10px;line-height:1.6}
+
+/* 底：手牌坞 */
+.hand-l{grid-area:hud2;background:linear-gradient(180deg,#241a10,#1a130d);border-top:1px solid var(--brass);border-right:1px solid var(--leather);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;font-size:.72rem;color:var(--dim)}
+.hand-dock{grid-area:hand;background:linear-gradient(180deg,#241a10,#1a130d);border-top:1px solid var(--brass);
+  display:flex;align-items:center;gap:12px;padding:0 18px;overflow-x:auto}
+.hcard{flex:0 0 auto;width:104px;height:124px;border-radius:9px;padding:8px;position:relative;transition:.16s;
+  background:linear-gradient(165deg,#3a2a1c,#241a10);border:1px solid var(--leather);cursor:pointer}
+.hcard:hover{transform:translateY(-6px);box-shadow:0 8px 20px rgba(0,0,0,.5)}
+.hcard.basic-buy{border-color:var(--up)}
+.hcard.basic-sell{border-color:var(--down)}
+.hcard.used{filter:grayscale(.8) opacity(.4);cursor:not-allowed}
+.hcard.disabled{filter:grayscale(.6) opacity(.45);cursor:not-allowed}
+.hcard .ic{font-size:1.5rem;text-align:center;margin-top:6px}
+.hcard .nm{font-size:.8rem;text-align:center;font-weight:bold;margin-top:4px}
+.hcard .ap{position:absolute;top:5px;right:7px;font-size:.68rem;color:var(--candle)}
+.hcard .ty{position:absolute;top:5px;left:7px;font-size:.62rem;color:var(--dim)}
+.hand-empty{color:var(--dim);font-size:.84rem}
+
+/* ============ 模态 ============ */
+.modal-bg{position:fixed;inset:0;z-index:30;background:rgba(10,7,4,.78);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center}
+.modal-bg.on{display:flex}
+.modal{background:linear-gradient(180deg,#332518,#241a10);border:1px solid var(--brass);border-radius:14px;
+  padding:24px 28px;max-width:520px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.modal h2{color:var(--candle);font-size:1.3rem;margin-bottom:6px;letter-spacing:1px}
+.modal .field{margin:14px 0}
+.modal label{display:block;font-size:.82rem;color:var(--dim);margin-bottom:5px}
+.modal input[type=number]{width:100%;padding:9px 12px;background:#1a130d;border:1px solid var(--leather);border-radius:7px;color:var(--text);font-size:1rem}
+.modal input:focus{outline:none;border-color:var(--candle)}
+.quick{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.quick button{padding:4px 10px;font-size:.76rem;border:1px solid var(--leather);border-radius:6px;background:#1a130d}
+.quick button:hover{border-color:var(--candle)}
+.fill-bar{height:10px;background:#1a130d;border-radius:5px;overflow:hidden;border:1px solid var(--leather);margin-top:6px}
+.fill-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--down),var(--candle));transition:.3s}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.evt-opt{border:1px solid var(--leather);border-radius:9px;padding:12px 14px;margin:8px 0;cursor:pointer;transition:.15s}
+.evt-opt:hover{border-color:var(--candle);background:rgba(58,42,28,.5)}
+.evt-opt .ot{font-weight:bold;color:var(--text)}
+.evt-opt .od{font-size:.78rem;color:var(--dim);margin-top:3px}
+.settle-row{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid rgba(58,42,28,.5);font-variant-numeric:tabular-nums}
+.rank-badge{font-size:1.4rem;color:var(--candle);text-align:center;margin:10px 0}
+.toast{position:fixed;top:60px;right:18px;z-index:40;background:rgba(30,22,16,.97);border:1px solid var(--brass);
+  border-left:4px solid var(--candle);border-radius:8px;padding:12px 16px;font-size:.86rem;max-width:300px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);transform:translateX(120%);transition:.4s}
+.toast.on{transform:translateX(0)}
+</style>
+</head>
+<body>
+<div class="candle-overlay"></div>
+
+<!-- ========== 局外准备界面 ========== -->
+<div id="prep">
+  <h1>🃏 股票大亨</h1>
+  <p class="sub">地下交易酒馆 · 第 1 局</p>
+  <div class="prep-panel">
+    <div class="prep-row"><span>🏦 银行总资产</span><span class="bank-num" id="bankNum">¥100,000</span></div>
+    <div class="prep-row">
+      <span>💼 本局带入</span>
+      <input type="range" id="bringSlider" min="50000" max="100000" step="5000" value="80000">
+      <span class="bring-val" id="bringVal">¥80,000</span>
+    </div>
+    <div class="section-t" style="margin-top:18px">选择本局流派（卡池将向该流派倾斜）</div>
+    <div class="fac-grid" id="facGrid"></div>
+    <div style="text-align:center;margin-top:22px">
+      <button class="btn btn-primary" id="startBtn" disabled>进入酒馆 · 开始本局 ▸</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 游戏主界面 ========== -->
+<div id="game">
+  <div class="hud">
+    <span class="logo">🃏 地下交易酒馆</span>
+    <span class="seg">第 <b id="hudDay">1</b>/7 日</span>
+    <span class="phase-pill" id="hudPhase">盘前</span>
+    <span class="seg">💰 <span class="cash" id="hudCash">¥80,000</span></span>
+    <span class="seg">🎫 <span class="ap-dots" id="hudAp"></span></span>
+    <span class="seg" id="hudCurios"></span>
+    <span class="spacer"></span>
+    <button class="btn" id="shopBtn" style="padding:5px 14px;font-size:.82rem">🛒 奇物商店</button>
+    <span class="seg">流派 <b id="hudFac">—</b></span>
+    <span class="seg">本局排名 <b id="hudRank">—</b>/7</span>
+  </div>
+
+  <!-- 左：AI 剧场 -->
+  <div class="ai-stage" id="aiStage"></div>
+
+  <!-- 中：主区 -->
+  <div class="center">
+    <div class="news-card" id="newsCard">
+      <div class="tag" id="newsTag">📰 今日新闻 · 第 1 日</div>
+      <div id="newsList"></div>
+      <div class="hint">影响哪只股？利好还是利空？真还是假？自己判断，或用卡核实。</div>
+    </div>
+    <div class="section-t">📈 交易席 · 5 只股票（点选后用底部买卖卡下单）</div>
+    <table class="stock-tbl"><thead><tr>
+      <th>代码</th><th>名称</th><th>现价</th><th>涨跌</th><th>走势</th><th>持仓</th>
+    </tr></thead><tbody id="stockBody"></tbody></table>
+    <div style="margin-top:14px;text-align:center">
+      <button class="btn" id="phaseBtn">▸ 继续</button>
+    </div>
+  </div>
+
+  <!-- 右：候选卡 -->
+  <div class="cards-zone">
+    <h3 id="candTitle">本日候选 · 3 选 2</h3>
+    <div class="cand-list" id="candList"></div>
+    <div class="cand-cta" id="candCta"></div>
+  </div>
+
+  <!-- 底左：标签 -->
+  <div class="hand-l">🎒 随身手牌<br><span id="handCount">0</span> / 6</div>
+  <!-- 底：手牌坞 -->
+  <div class="hand-dock" id="handDock"></div>
+</div>
+
+<!-- 模态层 -->
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   股票大亨 · 地下交易酒馆 — 原型（mock 数据，纯前端）
+   实现：准备界面 → 盘前/发言/选牌/行动/结算 的核心日循环
+   骰子为后台隐藏引擎，玩家只看涨跌幅
+   ============================================================ */
+
+const FACTIONS=[
+  {id:'def',ic:'🛡️',nm:'稳健防守流',ds:'止损控仓，稳中求胜',color:'--fac-def'},
+  {id:'agg',ic:'⚔️',nm:'激进进攻流',ds:'杠杆梭哈，放大盈亏',color:'--fac-agg'},
+  {id:'inf',ic:'🔮',nm:'信息先知流',ds:'提前看穿消息真假',color:'--fac-inf'},
+  {id:'trd',ic:'🏄',nm:'趋势跟随流',ds:'顺势而为，追涨杀跌',color:'--fac-trd'},
+  {id:'evt',ic:'🎲',nm:'事件驱动流',ds:'混乱中寻找机会',color:'--fac-evt'},
+  {id:'qnt',ic:'🤖',nm:'量化算法流',ds:'数据评级，理性下注',color:'--fac-qnt'},
+];
+
+// 6 个 AI 对手（不显示流派标签，靠发言/调查/复盘去猜）
+const AIS=[
+  {face:'🎩',name:'老K'},   {face:'🧔',name:'阿强'},
+  {face:'🔮',name:'神婆'},  {face:'🏄',name:'浪子'},
+  {face:'🤡',name:'小丑'},  {face:'🤖',name:'铁算盘'},
+];
+// 隐藏真实意图（结算用，调查卡可揭示）
+const DIRS=['看涨','看跌','观望'];
+const STRENGTH=['低','中','高'];
+
+const STOCKS=[
+  {code:'600301',name:'东海化工',price:24.1,chg:2.1,pos:500},
+  {code:'600188',name:'兆芯半导',price:88.5,chg:-1.4,pos:0},
+  {code:'300750',name:'瀚海动力',price:156.2,chg:0.8,pos:200},
+  {code:'002594',name:'比迪新能',price:41.7,chg:-0.5,pos:0},
+  {code:'688981',name:'中芯微电',price:62.3,chg:3.2,pos:0},
+];
+
+// 今日新闻库（开盘随机播报 0~3 条，玩家自行推理影响哪只股、利好利空、真假）
+// target: 个股代码 或 'ALL'(大盘) ；dir: +1 利好 / -1 利空（玩家不可见，结算时若为"真"则生效）
+const NEWS_POOL=[
+  // 东海化工 600301 / 3D打印耗材·化工
+  {text:'据传，东海化工董事长昨夜飞往深圳，与某 3D 打印龙头密谈耗材独家供货。',target:'600301',dir:+1},
+  {text:'行业媒体：3D 打印耗材出口管制传将放开，相关化工企业或迎订单潮。',target:'600301',dir:+1},
+  {text:'东海化工一处生产基地传出环保督察，部分产线或临时限产。',target:'600301',dir:-1},
+  // 兆芯半导 600188 / 半导体
+  {text:'网传兆芯半导因一批晶圆良率问题被大客户约谈，官方暂未回应。',target:'600188',dir:-1},
+  {text:'消息称兆芯半导新一代芯片流片成功，性能对标海外大厂。',target:'600188',dir:+1},
+  {text:'半导体板块传来风声：海外巨头拟下调报价，国产替代承压。',target:'600188',dir:-1},
+  // 瀚海动力 300750 / 储能·动力电池
+  {text:'瀚海动力被曝拿下海外储能大单，金额或超去年全年营收。',target:'300750',dir:+1},
+  {text:'瀚海动力一处仓库夜间起火，公司称"对生产无重大影响"。',target:'300750',dir:-1},
+  {text:'储能补贴新政有望落地，机构连夜上调动力电池板块评级。',target:'300750',dir:+1},
+  // 比迪新能 002594 / 新能源车
+  {text:'有自媒体称比迪新能某新车型电池存在隐患，公司称"纯属谣言"。',target:'002594',dir:-1},
+  {text:'比迪新能月度交付数据超预期，门店爆单排到下个月。',target:'002594',dir:+1},
+  {text:'传比迪新能将宣布大幅降价，业内担忧引发新一轮价格战。',target:'002594',dir:-1},
+  // 中芯微电 688981 / 芯片·微电子
+  {text:'中芯微电传出将获国家大基金二期增资，知情人士不予置评。',target:'688981',dir:+1},
+  {text:'中芯微电一名核心高管被曝离职，团队稳定性引发猜测。',target:'688981',dir:-1},
+  {text:'中芯微电获某车企定点，车规芯片量产在即。',target:'688981',dir:+1},
+  // 大盘 / 宏观（影响全部个股，幅度较小）
+  {text:'央行公开市场净投放规模超预期，市场情绪明显回暖。',target:'ALL',dir:+1},
+  {text:'北向资金今日大幅净流出，蓝筹股承压回调。',target:'ALL',dir:-1},
+  {text:'监管发声"严打市场操纵与虚假信息"，游资题材股退潮。',target:'ALL',dir:-1},
+  {text:'某券商策略会唱多科技成长，称"新一轮行情正在酝酿"。',target:'ALL',dir:+1},
+  {text:'隔夜外围市场重挫，A 股开盘恐高情绪蔓延。',target:'ALL',dir:-1},
+];
+
+// 候选卡池：信息卡(中立) + 各流派祝福卡
+const INFO_CARDS=[
+  {id:'chacang',ty:'信息',ic:'🔍',nm:'查仓',ap:1,
+    ds:'调查 1 名 AI：揭示它昨日重仓的股票与买卖方向，借此推断它今天可能的动向。'},
+  {id:'yuqi',ty:'信息',ic:'🎭',nm:'识别语气',ap:1,
+    ds:'调查 1 名 AI：揭示它的发言模式——真心话 / 虚张声势 / 反向喊话，识破它在不在骗你。'},
+  {id:'zhuiwen',ty:'信息',ic:'💬',nm:'追问',ap:1,
+    ds:'追问 1 名 AI，逼它再补一句更接近真实意图的话，比单看公开发言更可信。'},
+  {id:'zijin',ty:'信息',ic:'💸',nm:'看资金流',ap:1,
+    ds:'调查 1 名 AI：揭示它今天真实的下注强度（低 / 中 / 高），强度越高代表越笃定。'},
+  {id:'duizhao',ty:'信息',ic:'📰',nm:'对照新闻',ap:1,
+    ds:'核实今日新闻的真假（真消息 / 假消息），避免被假新闻误导而下错注。'},
+];
+const BLESS_CARDS=[
+  {id:'b_def1',ty:'祝福',fac:'def',ic:'🛡️',nm:'止损护盾',ap:1,star:1,
+    ds:'当日生效：任意一只亏损持仓收盘跌幅最多 -3%，超出部分由护盾承担。'},
+  {id:'b_agg1',ty:'祝福',fac:'agg',ic:'⚔️',nm:'杠杆冲锋',ap:1,star:1,
+    ds:'当日生效：购买力 ×1.5，可借钱买入超过现金的仓位，盈亏同步放大。'},
+  {id:'b_inf1',ty:'祝福',fac:'inf',ic:'🔮',nm:'新闻预读',ap:1,star:2,
+    ds:'当日生效：开局直接得知今日新闻真假，等于免费白嫖一张「对照新闻」。'},
+  {id:'b_trd1',ty:'祝福',fac:'trd',ic:'🏄',nm:'动量信号',ap:1,star:1,
+    ds:'当日生效：显示全部 5 只股票的动量评分（↑↑/↑/→/↓/↓↓），辅助判断方向。'},
+  {id:'b_evt1',ty:'祝福',fac:'evt',ic:'🎲',nm:'浑水摸鱼',ap:1,star:1,
+    ds:'当日生效：所有买卖交易免手续费，适合当天高频出手。'},
+  {id:'b_qnt1',ty:'祝福',fac:'qnt',ic:'🤖',nm:'胜率估算',ap:1,star:2,
+    ds:'当日生效：下注前显示目标股的上涨概率评级（★~★★★★★），不暴露后台机制。'},
+];
+// 手续费：万分之三，单笔最低 ¥5（对标 A 股；可被「浑水摸鱼」当日免除）
+const FEE_RATE=0.0003, FEE_MIN=5;
+function calcFee(amount){
+  if(state.feeFreeToday) return 0;
+  return Math.max(amount*FEE_RATE, FEE_MIN);
+}
+// 奇物：用现金购买，整局(7日)生效；撤离成功(前三)带入仓库，失败销毁
+const CURIOS=[
+  {id:'CUR-01',ic:'🦢',nm:'黑天鹅保险',price:8000,  ds:'本局任一交易日亏损超过带入额 15% 时，返还该日 60% 损失。'},
+  {id:'CUR-02',ic:'📡',nm:'内幕通讯器',price:10000, ds:'每日开局免费得知 1 个随机 AI 的真实方向。'},
+  {id:'CUR-03',ic:'🎲',nm:'改命符',  price:12000, ds:'每日对 1 只持仓股的收盘结果重算一次，取较优。'},
+  {id:'CUR-04',ic:'💊',nm:'行动兴奋剂',price:9000,  ds:'每日行动点 +1（5→6）。'},
+  {id:'CUR-05',ic:'🃏',nm:'老千牌',  price:7000,  ds:'每日候选卡多抽 1 张（4 选 2）。'},
+  {id:'CUR-06',ic:'🧠',nm:'读心契约',price:6000,  ds:'每日首张信息卡不消耗行动点。'},
+  {id:'CUR-07',ic:'📈',nm:'杠杆契约',price:5000,  ds:'本局购买力上限 ×2（可借钱买入超过现金的仓位）。'},
+  {id:'CUR-08',ic:'🗿',nm:'流派图腾',price:11000, ds:'本流派祝福卡出现概率再次翻倍。'},
+  {id:'CUR-09',ic:'🔐',nm:'加密钱包',price:6000,  ds:'撤离成功（前三）时，带出资金额外 +5%。'},
+  {id:'CUR-10',ic:'🏦',nm:'保险箱',  price:10000, ds:'撤离失败时，仍保留其中 1 件奇物不被销毁。'},
+];
+const CURIO_BY_ID=Object.fromEntries(CURIOS.map(c=>[c.id,c]));
+function hasCurio(id){return state.curios.includes(id);}
+function dailyMaxAp(){return 5+(hasCurio('CUR-04')?1:0);}
+function leverage(){let L=1; if(hasCurio('CUR-07'))L=2; if(state.levBlessToday)L=Math.max(L,1.5); return L;}
+function buyingPower(){return state.cash*leverage();}
+// 买卖基础卡说明（常驻手牌）
+const BASIC_DESC={
+  buy:'买入卡（基础·常驻）：自填出价与数量，出价越高越容易成交，成交后按收盘涨跌结算盈亏。消耗 1 行动点。',
+  sell:'卖出卡（基础·常驻）：自填要价与数量，要价越低越容易成交。消耗 1 行动点。',
+};
+
+const state={
+  bank:100000, bringIn:80000, faction:null,
+  day:1, phase:'news', cash:80000, ap:5, maxAp:5, rank:2,
+  selStock:0, speaking:-1, candidates:[], hand:[], pendingCard:null,
+  curios:[], shopStock:[],                       // 奇物：已购 / 本局上架
+  feeFreeToday:false, levBlessToday:false, firstInfoUsedToday:false,
+};
+
+const $=s=>document.querySelector(s);
+const fmt=n=>'¥'+Math.round(n).toLocaleString();
+
+/* ---------- 准备界面 ---------- */
+function initPrep(){
+  const g=$('#facGrid');
+  g.innerHTML=FACTIONS.map(f=>`<div class="fac-card" data-f="${f.id}" style="border-top:3px solid var(${f.color})">
+    <div class="ic">${f.ic}</div><div class="nm">${f.nm}</div><div class="ds">${f.ds}</div></div>`).join('');
+  g.querySelectorAll('.fac-card').forEach(c=>c.onclick=()=>{
+    g.querySelectorAll('.fac-card').forEach(x=>x.classList.remove('sel'));
+    c.classList.add('sel'); state.faction=c.dataset.f; $('#startBtn').disabled=false;
+  });
+  const sl=$('#bringSlider');
+  sl.oninput=()=>{state.bringIn=+sl.value;$('#bringVal').textContent=fmt(+sl.value)};
+  $('#startBtn').onclick=startRound;
+}
+function startRound(){
+  state.cash=state.bringIn; state.day=1; state.phase='news';
+  state.curios=[]; state.feeFreeToday=false; state.levBlessToday=false; state.firstInfoUsedToday=false;
+  state.maxAp=dailyMaxAp(); state.ap=state.maxAp;
+  // 本局奇物商店随机上架 4 件
+  state.shopStock=CURIOS.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,4);
+  $('#prep').style.display='none'; $('#game').classList.add('on');
+  const f=FACTIONS.find(x=>x.id===state.faction);
+  $('#hudFac').textContent=f.ic+f.nm.slice(0,2);
+  renderAll(); enterPhase('news');
+}
+
+/* ---------- 渲染 ---------- */
+function renderHud(){
+  $('#hudDay').textContent=state.day;
+  $('#hudCash').textContent=fmt(state.cash);
+  $('#hudRank').textContent=state.rank;
+  const PHN={news:'盘前·新闻',speech:'AI发言',pick:'选牌',action:'行动',settle:'收盘结算'};
+  $('#hudPhase').textContent=PHN[state.phase];
+  let dots='';for(let i=0;i<state.maxAp;i++)dots+=`<span class="ap-dot ${i<state.ap?'on':''}"></span>`;
+  $('#hudAp').innerHTML=dots;
+  const cs=$('#hudCurios');
+  if(cs) cs.innerHTML = state.curios.length
+    ? '奇物 '+state.curios.map(id=>`<span title="${CURIO_BY_ID[id].nm}：${CURIO_BY_ID[id].ds}">${CURIO_BY_ID[id].ic}</span>`).join(' ')
+    : '';
+  const sb=$('#shopBtn'); if(sb) sb.onclick=openShop;
+}
+function openShop(){
+  if(state.phase==='news'||state.phase==='speech'){toast('开盘后才能进商店');return;}
+  const full=state.curios.length>=3;
+  const items=state.shopStock.map(id=>{
+    const c=CURIO_BY_ID[id], owned=hasCurio(id);
+    const price=Math.round(c.price*(1)); // 称号折扣后续接入
+    const can=!owned && !full && state.cash>=price;
+    return `<div class="card" style="width:100%;display:flex;gap:12px;align-items:center;text-align:left">
+      <div style="font-size:1.9rem">${c.ic}</div>
+      <div style="flex:1">
+        <div class="nm" style="text-align:left">${c.nm}　<span style="color:var(--candle)">${fmt(price)}</span></div>
+        <div class="ds" style="text-align:left;min-height:auto">${c.ds}</div>
+      </div>
+      ${owned?'<span style="color:var(--down)">已拥有</span>'
+        :`<button class="btn ${can?'btn-primary':''}" data-id="${id}" ${can?'':'disabled'} style="padding:6px 14px">购买</button>`}
+    </div>`;
+  }).join('');
+  showModal(`
+    <h2>🛒 奇物商店</h2>
+    <div style="color:var(--dim);font-size:.82rem;margin-bottom:8px">
+      奇物整局生效。持有 ${state.curios.length}/3 件　💰 现金 ${fmt(state.cash)}　${full?'<span style="color:var(--up)">已达持有上限</span>':''}</div>
+    <div style="display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow-y:auto">${items}</div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">关闭</button></div>`);
+  $('#modalBox').querySelectorAll('button[data-id]').forEach(b=>b.onclick=()=>buyCurio(b.dataset.id));
+}
+function buyCurio(id){
+  const c=CURIO_BY_ID[id];
+  if(hasCurio(id))return;
+  if(state.curios.length>=3){toast('奇物持有已达上限(3)');return;}
+  if(state.cash<c.price){toast('现金不足');return;}
+  state.cash-=c.price; state.curios.push(id);
+  // 即时生效的奇物
+  if(id==='CUR-04'){ state.maxAp++; state.ap++; }            // 行动兴奋剂：当日也+1
+  if(id==='CUR-02'){ revealOneAI(); }                        // 内幕通讯器：立即揭示1个AI
+  toast(`🛒 购入【${c.nm}】`);
+  renderHud(); openShop();
+}
+function renderAI(){
+  const stage=$('#aiStage');
+  stage.querySelectorAll('.ai-row,.bubble').forEach(e=>e.remove());
+  AIS.forEach((a,i)=>{
+    const row=document.createElement('div');row.className='ai-row';
+    let cls='ai-sprite';
+    if(state.phase==='speech') cls+= (i===state.speaking?' speaking':' dim');
+    if(state.pendingCard && state.pendingCard.ty==='信息' && state.pendingCard.id!=='duizhao') cls+=' selectable';
+    if(a._inv) cls+=' investigated';
+    const pnl=(a._pnl||0);
+    row.innerHTML=`<div class="${cls}" data-i="${i}">${a.face}
+      <span class="name">${a.name}</span>
+      <span class="pnl ${pnl>=0?'up':'down'}">${pnl>=0?'+':''}${pnl}%</span></div>`;
+    stage.appendChild(row);
+    row.querySelector('.ai-sprite').onclick=()=>onAIClick(i);
+  });
+  // 发言/调查气泡
+  if(state._bubble){
+    const b=document.createElement('div');b.className='bubble';
+    const rowH=stage.clientHeight/6;
+    b.style.top=(8+state._bubble.i*rowH+rowH/2-22)+'px';
+    const rv=state._bubble.review?'<span class="rv">（点击其他头像查看其发言）</span>':'';
+    b.innerHTML=`<b>${AIS[state._bubble.i].name}：</b>${state._bubble.text}${rv}`;
+    stage.appendChild(b);
+  }
+}
+// 开盘随机选 0~3 条新闻（加权：0→15% 1→40% 2→30% 3→15%）
+function pickNews(){
+  const r=Math.random();
+  const count = r<0.15?0 : r<0.55?1 : r<0.85?2 : 3;
+  const pool=NEWS_POOL.slice();
+  const list=[];
+  for(let k=0;k<count && pool.length;k++){
+    const idx=(Math.random()*pool.length)|0;
+    list.push({...pool[idx], real:Math.random()<0.6}); // 真:假 ≈ 6:4
+    pool.splice(idx,1);
+  }
+  state._newsList=list;
+}
+function renderNews(){
+  $('#newsTag').textContent=`📰 今日新闻 · 第 ${state.day} 日 · ${(state._newsList||[]).length} 条`;
+  const box=$('#newsList');
+  const list=state._newsList||[];
+  if(list.length===0){box.innerHTML='<div class="news-quiet">今日无重大消息，市场平静。</div>';return;}
+  box.innerHTML=list.map(n=>{
+    const tag=state._newsRevealed?`<span class="real ${n.real?'t':'f'}">${n.real?'真消息':'假消息'}</span>`:'';
+    return `<div class="news-item"><span class="bull">●</span><span class="txt">${n.text}</span>${tag}</div>`;
+  }).join('');
+}
+function renderStocks(){
+  $('#stockBody').innerHTML=STOCKS.map((s,i)=>{
+    const bars=Array.from({length:6},()=>`<i style="height:${4+Math.random()*14}px"></i>`).join('');
+    return `<tr class="${i===state.selStock?'sel':''}" data-i="${i}">
+      <td class="code">${s.code}</td><td>${s.name}</td>
+      <td>${s.price.toFixed(2)}</td>
+      <td class="${s.chg>=0?'up':'down'}">${s.chg>=0?'+':''}${s.chg.toFixed(1)}%</td>
+      <td><span class="kline-mini">${bars}</span></td>
+      <td>${s.pos>0?`<span class="pos-tag">${s.pos}股</span>`:'<span style="color:var(--dim)">—</span>'}</td>
+    </tr>`;}).join('');
+  $('#stockBody').querySelectorAll('tr').forEach(r=>r.onclick=()=>{state.selStock=+r.dataset.i;renderStocks()});
+}
+function renderCandidates(){
+  const list=$('#candList'),cta=$('#candCta');
+  if(state.phase!=='pick'){
+    if(state.day && state._picked){list.innerHTML='';cta.innerHTML='<div class="cand-note">✅ 今日手牌已确认<br>未选的卡已弃</div>';}
+    else{list.innerHTML='';cta.innerHTML='<div class="cand-note">候选卡将在"选牌"阶段出现</div>';}
+    return;
+  }
+  $('#candTitle').textContent=`本日候选 · ${state.candidates.length} 选 2`;
+  const picked=state.candidates.filter(c=>c._pick).length;
+  list.innerHTML=state.candidates.map((c,i)=>{
+    const facCls=c.fac?'fac-mark':'';
+    const facStyle=c.fac?`style="border-top-color:var(--fac-${c.fac})"`:'';
+    const stars=c.star?'★'.repeat(c.star):'';
+    return `<div class="card ${facCls} ${c._pick?'picked':''}" data-i="${i}" ${facStyle}>
+      <div class="top"><span class="ap">${c.ap}🎫</span><span class="star">${stars}</span></div>
+      <div class="ic">${c.ic}</div><div class="nm">${c.nm}</div>
+      <div class="ds">${c.ds}</div>
+      <div style="text-align:center;margin-top:6px;font-size:.7rem;color:var(--dim)">${c.ty}卡</div>
+    </div>`;}).join('');
+  list.querySelectorAll('.card').forEach(el=>el.onclick=()=>{
+    const c=state.candidates[+el.dataset.i];
+    if(!c._pick && picked>=2){toast('最多选 2 张');return;}
+    c._pick=!c._pick; renderCandidates();
+  });
+  cta.innerHTML=`<button class="btn btn-primary" id="confirmPick" ${picked===2?'':'disabled'}>确认 2 张 (${picked}/2)</button>`;
+  if(picked===2)$('#confirmPick').onclick=confirmPick;
+}
+function renderHand(){
+  const dock=$('#handDock');
+  const basics=[
+    {id:'buy',basic:'buy',ic:'🟢',nm:'买入卡'},
+    {id:'sell',basic:'sell',ic:'🔴',nm:'卖出卡'},
+  ];
+  const all=[...basics,...state.hand];
+  if(all.length===0){dock.innerHTML='<span class="hand-empty">手牌为空</span>';return;}
+  dock.innerHTML=all.map((c,i)=>{
+    const isBasic=!!c.basic;
+    const noAp=state.ap<(c.ap||1) || state.phase!=='action';
+    let cls='hcard';
+    if(c.basic==='buy')cls+=' basic-buy'; if(c.basic==='sell')cls+=' basic-sell';
+    if(c._used)cls+=' used'; else if(noAp)cls+=' disabled';
+    const desc=isBasic?BASIC_DESC[c.basic]:(c.ds||'');
+    return `<div class="${cls}" data-id="${c.id}" data-basic="${c.basic||''}" title="${desc}">
+      <span class="ty">${isBasic?'基础':c.ty}</span><span class="ap">${c.ap||1}🎫</span>
+      <div class="ic">${c.ic}</div><div class="nm">${c.nm}</div></div>`;}).join('');
+  dock.querySelectorAll('.hcard').forEach(el=>{
+    el.onclick=()=>{
+      if(el.classList.contains('used')||el.classList.contains('disabled'))return;
+      const basic=el.dataset.basic;
+      if(basic==='buy'||basic==='sell')openOrderModal(basic);
+      else playCard(el.dataset.id);
+    };
+  });
+  $('#handCount').textContent=state.hand.length;
+}
+function renderAll(){renderHud();renderAI();renderNews();renderStocks();renderCandidates();renderHand();}
+
+/* ---------- 阶段控制 ---------- */
+function enterPhase(p){
+  state.phase=p;
+  const btn=$('#phaseBtn');
+  if(p==='news'){
+    pickNews();                 // 开盘随机播报 0~3 条今日新闻
+    state._newsRevealed=false;
+    // 后台为本局每只股票暗中决定真实涨跌（玩家不可见骰子）
+    rollHiddenOutcomes();
+    btn.style.display='';btn.textContent='▸ 听听牌桌上怎么说';btn.onclick=()=>enterPhase('speech');
+  }else if(p==='speech'){
+    btn.style.display='none';
+    runSpeech();
+  }else if(p==='pick'){
+    state._picked=false;
+    state.candidates=drawCandidates();
+    btn.style.display='none';
+  }else if(p==='action'){
+    btn.style.display='';btn.textContent='▸ 收盘结算';btn.onclick=()=>enterPhase('settle');
+    toast(`行动阶段：${state.ap} 行动点，自由出牌/下单`);
+  }else if(p==='settle'){
+    btn.style.display='none';
+    doSettle();
+  }
+  renderAll();
+}
+function runSpeech(){
+  // 为每个 AI 暗定真实意图
+  AIS.forEach(a=>{a._dir=DIRS[(Math.random()*3)|0];a._str=STRENGTH[(Math.random()*3)|0];a._inv=false;a._pnl=((Math.random()*8-3)).toFixed(1);});
+  const lines=[
+    `${pick(STOCKS).name}今天稳，我已经布局了。`,
+    `别信新闻，那都是放烟雾。`,
+    `我今天空仓观望，你们随意。`,
+    `${pick(STOCKS).name}要出事，赶紧跑。`,
+    `嘿嘿，跟着我吃肉。`,
+    `数据不会骗人，我看多。`,
+  ];
+  // 记录每个 AI 本轮发言，供之后点头像回看
+  AIS.forEach((a,i)=>a._speech=lines[i]);
+  let i=0;
+  const step=()=>{
+    if(i>=AIS.length){
+      state.speaking=-1;state._bubble=null;renderAI();
+      if(hasCurio('CUR-02')) revealOneAI();   // 内幕通讯器：每日揭示1个AI真实方向
+      enterPhase('pick');return;
+    }
+    state.speaking=i; state._bubble={i,text:AIS[i]._speech};
+    renderAI();
+    i++; setTimeout(step,1300);
+  };
+  step();
+}
+function drawCandidates(){
+  // 加权抽样：本流派祝福×2（流派图腾→×4），其余×0.5，信息卡×1
+  const facMult=hasCurio('CUR-08')?4:2;       // 流派图腾
+  const pool=[];
+  INFO_CARDS.forEach(c=>pool.push({c,w:1}));
+  BLESS_CARDS.forEach(c=>pool.push({c,w:c.fac===state.faction?facMult:0.5}));
+  const drawN=3+(hasCurio('CUR-05')?1:0);     // 老千牌：多抽 1 张
+  const out=[];
+  const tmp=pool.slice();
+  while(out.length<drawN && tmp.length){
+    const tot=tmp.reduce((s,x)=>s+x.w,0);let r=Math.random()*tot,idx=0;
+    for(let k=0;k<tmp.length;k++){r-=tmp[k].w;if(r<=0){idx=k;break;}}
+    out.push({...tmp[idx].c,_pick:false});tmp.splice(idx,1);
+  }
+  return out;
+}
+// 信息卡行动点消耗（读心契约：每日首张免）
+function consumeInfoAp(){
+  if(hasCurio('CUR-06') && !state.firstInfoUsedToday){
+    state.firstInfoUsedToday=true; toast('🧠 读心契约：本张信息卡免行动点'); renderHud(); return;
+  }
+  spendAp(1);
+}
+// 内幕通讯器：揭示 1 个尚未调查的 AI 的真实方向
+function revealOneAI(){
+  const cands=AIS.map((a,i)=>({a,i})).filter(x=>!x.a._inv && x.a._dir);
+  if(!cands.length)return;
+  const {a,i}=cands[(Math.random()*cands.length)|0]; a._inv=true;
+  state._bubble={i,text:`<span style="color:var(--rare-gold)">[内幕] 真实方向：${a._dir}</span>`};
+  renderAI(); toast(`📡 内幕通讯器：${a.name} 今日真实方向【${a._dir}】`);
+  clearTimeout(state._reviewT); state._reviewT=setTimeout(()=>{state._bubble=null;renderAI();},2800);
+}
+function confirmPick(){
+  const chosen=state.candidates.filter(c=>c._pick).map(c=>({...c,_used:false}));
+  state.hand.push(...chosen);
+  state._picked=true;
+  if(state.hand.length>6){ promptDiscard(); return; }   // 超上限：玩家自选弃牌
+  toast('已选 2 张进手牌（跨日跨局保留）');
+  enterPhase('action');
+}
+function promptDiscard(){
+  const need=state.hand.length-6;
+  let marked=[];
+  const render=()=>{
+    showModal(`<h2>🗑 手牌超出上限</h2>
+      <div style="color:var(--dim);font-size:.85rem">手牌上限 6 张，请选择弃掉 ${need} 张（已选 ${marked.length}/${need}）</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;justify-content:center">
+      ${state.hand.map((c,i)=>`<div class="card" style="width:96px;cursor:pointer;${marked.includes(i)?'border-color:var(--up);box-shadow:0 0 12px rgba(217,83,79,.5)':''}" data-i="${i}" title="${c.ds||''}">
+        <div class="ic" style="margin:2px 0">${c.ic}</div>
+        <div class="nm" style="font-size:.76rem">${c.nm}</div>
+        <div style="text-align:center;font-size:.64rem;color:var(--dim)">${c.ty}卡</div>
+        ${marked.includes(i)?'<div style="text-align:center;color:var(--up);font-size:.7rem;margin-top:2px">弃</div>':''}
+      </div>`).join('')}
+      </div>
+      <div class="modal-actions"><button class="btn btn-primary" id="discardOk" ${marked.length===need?'':'disabled'}>确认弃牌</button></div>`);
+    $('#modalBox').querySelectorAll('.card').forEach(el=>el.onclick=()=>{
+      const i=+el.dataset.i;
+      if(marked.includes(i))marked=marked.filter(x=>x!==i);
+      else if(marked.length<need)marked.push(i);
+      render();
+    });
+    const ok=$('#discardOk');
+    if(ok&&marked.length===need)ok.onclick=()=>{
+      state.hand=state.hand.filter((_,i)=>!marked.includes(i));
+      closeModal(); toast('已弃牌，手牌回到上限内'); enterPhase('action');
+    };
+  };
+  render();
+}
+
+/* ---------- 行动：信息卡 / 买卖卡 ---------- */
+function playCard(id){
+  const card=state.hand.find(c=>c.id===id&&!c._used);
+  if(!card)return;
+  if(card.id==='duizhao'){ // 对照新闻：核实今日全部新闻真假
+    consumeInfoAp(); card._used=true;
+    revealNews();
+    toast((state._newsList||[]).length?'📰 已核实今日新闻真假':'📰 今日无新闻可核实');
+    renderHand();return;
+  }
+  if(card.ty==='信息'){ state.pendingCard=card; toast('选择一个 AI 调查'); renderAI(); return; }
+  // 祝福卡：直接激活
+  spendAp(card.ap||1); card._used=true;
+  if(card.id==='b_evt1'){ state.feeFreeToday=true; toast('✨【浑水摸鱼】今日交易免手续费'); }
+  else if(card.id==='b_inf1'){ revealNews(); toast('✨【新闻预读】已得知今日新闻真假'); }
+  else if(card.id==='b_agg1'){ state.levBlessToday=true; toast('✨【杠杆冲锋】今日购买力 ×1.5'); }
+  else toast(`✨ 激活祝福【${card.nm}】`);
+  renderHand();
+}
+function onAIClick(i){
+  const a=AIS[i];
+  // 调查模式：用信息卡查这名 AI
+  if(state.pendingCard){
+    const card=state.pendingCard;
+    consumeInfoAp(); card._used=true; a._inv=true;
+    let info='';
+    if(card.id==='chacang')info=`昨日目标 ${pick(STOCKS).name} · ${a._dir}`;
+    else if(card.id==='yuqi')info=`发言模式：${['真心','虚张','反向喊话'][(Math.random()*3)|0]}`;
+    else if(card.id==='zhuiwen')info=`"其实我${a._dir}${pick(STOCKS).name}…"`;
+    else if(card.id==='zijin')info=`真实下注强度：${a._str}`;
+    state.pendingCard=null;
+    state._bubble={i,text:`<span style="color:var(--rare-gold)">[调查] ${info}</span>`};
+    renderAI(); renderHand();
+    setTimeout(()=>{state._bubble=null;renderAI();},2800);
+    return;
+  }
+  // 非调查模式：回看这名 AI 本轮发言
+  if(a._speech){
+    state._bubble={i,text:a._speech,review:true};
+    renderAI();
+    clearTimeout(state._reviewT);
+    state._reviewT=setTimeout(()=>{state._bubble=null;renderAI();},3500);
+  }
+}
+function openOrderModal(side){
+  if(state.phase!=='action'){toast('行动阶段才能下单');return;}
+  if(state.ap<1){toast('行动点不足');return;}
+  const s=STOCKS[state.selStock];
+  const isBuy=side==='buy';
+  showModal(`
+    <h2>${isBuy?'🟢 买入卡':'🔴 卖出卡'} · ${s.name}</h2>
+    <div style="color:var(--dim);font-size:.84rem">市场基准价 P0 = <b style="color:var(--candle)">${s.price.toFixed(2)}</b>　${isBuy?'出价越高越易成交':'要价越低越易成交'}</div>
+    <div class="field">
+      <label>${isBuy?'出价 B':'要价 A'}</label>
+      <input type="number" id="ordPrice" value="${s.price.toFixed(2)}" step="0.01">
+      <div class="quick" id="ordQuick"></div>
+    </div>
+    <div class="field">
+      <label>数量（股，100 的整数倍）</label>
+      <input type="number" id="ordQty" value="100" step="100" min="100">
+    </div>
+    <div class="field">
+      <label>预估成交概率 <span id="fillPct" style="color:var(--candle)"></span></label>
+      <div class="fill-bar"><i id="fillBar"></i></div>
+      <div style="font-size:.72rem;color:var(--dim);margin-top:6px" id="fillNote"></div>
+    </div>
+    <div style="font-size:.78rem;color:var(--dim);display:flex;justify-content:space-between;margin-top:4px">
+      <span>预估${isBuy?'总支出':'净收入'}</span><span id="ordAmt" style="color:var(--text)"></span></div>
+    <div style="font-size:.74rem;color:var(--dim);display:flex;justify-content:space-between">
+      <span>其中手续费（万三·最低¥5）</span><span id="ordFee" style="color:var(--candle)"></span></div>
+    ${isBuy?`<div style="font-size:.74rem;color:var(--dim);display:flex;justify-content:space-between">
+      <span>可用购买力${leverage()>1?`（杠杆 ×${leverage()}）`:''}</span><span style="color:var(--candle)">${fmt(buyingPower())}</span></div>`:''}
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn ${isBuy?'btn-buy':'btn-sell'} btn-primary" id="ordSubmit">下单（1🎫）</button>
+    </div>
+  `);
+  const upd=()=>{
+    const p=+$('#ordPrice').value, qty=+($('#ordQty').value||0), ratio=p/s.price;
+    let prob;
+    if(isBuy) prob = ratio>=1.02?1: ratio>=1?0.7: ratio>=0.98?0.4:0.1;
+    else      prob = ratio<=0.98?1: ratio<=1?0.7: ratio<=1.02?0.4:0.1;
+    $('#fillPct').textContent=Math.round(prob*100)+'%';
+    $('#fillBar').style.width=(prob*100)+'%';
+    $('#fillNote').textContent= prob>=1?'几乎必成交':prob>=.7?'较易成交':prob>=.4?'有风险':'多半挂单不成';
+    const amt=p*qty, fee=calcFee(amt);
+    $('#ordFee').textContent=state.feeFreeToday?'¥0（浑水摸鱼·免）':fmt(fee);
+    $('#ordAmt').textContent=fmt(isBuy?amt+fee:amt-fee);
+  };
+  const quick=$('#ordQuick');
+  const presets=isBuy?[['市价',1],['+2%稳成',1.02],['-2%试探',0.98]]:[['市价',1],['-2%稳成',0.98],['+2%博价',1.02]];
+  quick.innerHTML=presets.map((q,i)=>`<button data-r="${q[1]}">${q[0]}</button>`).join('');
+  quick.querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#ordPrice').value=(s.price*+b.dataset.r).toFixed(2);upd();});
+  $('#ordPrice').oninput=upd; $('#ordQty').oninput=upd; upd();
+  $('#ordSubmit').onclick=()=>submitOrder(side);
+}
+function submitOrder(side){
+  const s=STOCKS[state.selStock];
+  const p=+$('#ordPrice').value, qty=+$('#ordQty').value;
+  const isBuy=side==='buy', ratio=p/s.price;
+  // 校验：买入不得超过购买力(现金×杠杆)；卖出须有持仓
+  if(isBuy){
+    const need=p*qty+calcFee(p*qty);
+    if(qty<=0){toast('数量需 >0');return;}
+    if(need>buyingPower()){toast(`购买力不足（可用 ${fmt(buyingPower())}）`);return;}
+  }else{
+    if(s.pos<=0){toast('该股无持仓，无法卖出');return;}
+  }
+  let prob = isBuy ? (ratio>=1.02?1:ratio>=1?0.7:ratio>=0.98?0.4:0.1)
+                   : (ratio<=0.98?1:ratio<=1?0.7:ratio<=1.02?0.4:0.1);
+  spendAp(1);
+  closeModal();
+  if(Math.random()<prob){
+    if(isBuy){
+      const amt=p*qty, fee=calcFee(amt);
+      state.cash-=amt+fee; s.pos+=qty;
+      toast(`✅ 买入 ${qty} 股 @${p.toFixed(2)}，手续费 ${fmt(fee)}`);
+    }else{
+      const q=Math.min(qty,s.pos), amt=p*q, fee=calcFee(amt);
+      state.cash+=amt-fee; s.pos-=q;
+      toast(`✅ 卖出 ${q} 股 @${p.toFixed(2)}，手续费 ${fmt(fee)}`);
+    }
+  }else{
+    toast(`❌ 未成交（出价不够），行动点已消耗`);
+  }
+  renderAll();
+}
+function spendAp(n){state.ap=Math.max(0,state.ap-n);renderHud();if(state.ap===0)toast('行动点耗尽，可收盘结算');}
+
+/* ---------- 结算（隐藏骰子，只显示涨跌幅） ---------- */
+function revealNews(){ state._newsRevealed=true; renderNews(); }
+function rollHiddenOutcomes(){
+  const map=[-6,-3,1,4,8];          // 成功数 0..4 → 涨跌幅
+  STOCKS.forEach(s=>{ s._succ=(Math.random()*5)|0; });   // 后台基础骰，玩家看不到
+  // 真新闻影响目标股：真利好 +1 / 真利空 -1；假新闻无效（仅是噪音）
+  (state._newsList||[]).forEach(n=>{
+    if(!n.real || !n.dir) return;
+    STOCKS.forEach(s=>{
+      if(n.target===s.code || n.target==='ALL'){
+        s._succ=Math.max(0,Math.min(4, s._succ + n.dir));
+      }
+    });
+  });
+  STOCKS.forEach(s=>{ s._move=map[s._succ]; });
+}
+function doSettle(){
+  state._newsRevealed=true;            // 收盘揭晓今日新闻真假
+  const map=[-6,-3,1,4,8];
+  // 改命符：对 1 只持仓股的结果重算一次，取较优
+  if(hasCurio('CUR-03')){
+    const held=STOCKS.filter(s=>s.pos>0);
+    if(held.length){
+      const t=held.reduce((a,b)=>a._succ<=b._succ?a:b);  // 最差的一只
+      t._succ=Math.max(t._succ,(Math.random()*5)|0); t._move=map[t._succ];
+    }
+  }
+  let pnl=0;
+  const rows=STOCKS.map(s=>{
+    const before=s.price; s.price=+(s.price*(1+s._move/100)).toFixed(2);
+    s.chg=s._move;
+    if(s.pos>0)pnl+=s.pos*(s.price-before);
+    return `<div class="settle-row"><span>${s.name}</span>
+      <span class="${s._move>=0?'up':'down'}">${s._move>=0?'+':''}${s._move}%</span></div>`;
+  }).join('');
+  // 今日新闻兑现回顾（真新闻→影响个股；假新闻→无效）
+  const byCode=Object.fromEntries(STOCKS.map(s=>[s.code,s]));
+  const newsRecap=(state._newsList||[]).map(n=>{
+    const tgt=n.target==='ALL'?'大盘':(byCode[n.target]?.name||'');
+    const verdict=n.real?`真·${n.dir>0?'利好':'利空'}（${tgt}）`:`假消息·无影响`;
+    const cls=n.real?(n.dir>0?'up':'down'):'';
+    return `<div class="settle-row" style="font-size:.8rem">
+      <span style="flex:1;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.text}</span>
+      <span class="${cls}" style="flex:0 0 auto;margin-left:8px">${verdict}</span></div>`;
+  }).join('');
+  state.cash+=pnl;
+  // 黑天鹅保险：当日亏损超过带入额 15% 时，返还 60% 损失
+  let insure=0;
+  if(hasCurio('CUR-01') && pnl<0 && (-pnl)>0.15*state.bringIn){
+    insure=Math.round(-pnl*0.6); state.cash+=insure;
+  }
+  // 简化 AI 排名波动
+  state.rank=Math.max(1,Math.min(7, state.rank + (pnl>0?-1: (Math.random()<.5?1:0))));
+  const last=state.day>=7;
+  showModal(`
+    <h2>🏁 第 ${state.day} 日 · 收盘结算</h2>
+    ${newsRecap?`<div class="section-t" style="margin:4px 0">📰 今日新闻兑现</div>${newsRecap}`:''}
+    <div class="section-t" style="margin:10px 0 4px">📈 个股涨跌（后台结算，不展示骰子）</div>
+    ${rows}
+    <div class="settle-row" style="border:none;margin-top:8px">
+      <b>今日持仓盈亏</b><b class="${pnl>=0?'up':'down'}">${pnl>=0?'+':''}${fmt(pnl)}</b></div>
+    ${insure?`<div class="settle-row" style="border:none"><span>🦢 黑天鹅保险返还</span><b class="up">+${fmt(insure)}</b></div>`:''}
+    <div class="rank-badge">本局排名 ${state.rank}/7 ${state.rank<=3?'🏆 暂列撤离区':'⚠ 掉出前三'}</div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="nextDay">${last?'本局结束 · 撤离':'进入第 '+(state.day+1)+' 日 ▸'}</button>
+    </div>`);
+  $('#nextDay').onclick=last?doExtract:nextDay;
+  renderHud();
+}
+function nextDay(){
+  closeModal();
+  state.day++;
+  state.maxAp=dailyMaxAp(); state.ap=state.maxAp;   // 行动兴奋剂在此体现
+  state.hand.forEach(c=>c._used=false); // 跨日保留、重置可用
+  AIS.forEach(a=>{a._inv=false;a._speech=null});
+  state._bubble=null;
+  state.feeFreeToday=false; state.levBlessToday=false; state.firstInfoUsedToday=false;
+  enterPhase('news');
+}
+function doExtract(){
+  const ok=state.rank<=3;
+  let carry=state.cash;
+  // 加密钱包：撤离成功带出资金 +5%
+  let bonus=0;
+  if(ok && hasCurio('CUR-09')){ bonus=Math.round(state.cash*0.05); carry+=bonus; }
+  state.bank=state.bank-state.bringIn+carry;
+  // 奇物去留：成功全保留；失败销毁（保险箱可留 1 件）
+  let curioLine;
+  if(ok) curioLine=state.curios.length?'✅ 收入仓库（可复用）':'（本局未购奇物）';
+  else if(hasCurio('CUR-10')) curioLine='⚠ 失败销毁，但🏦保险箱保留 1 件';
+  else curioLine=state.curios.length?'❌ 全部销毁':'（本局未购奇物）';
+  showModal(`
+    <h2>${ok?'🏆 撤离成功（前三）':'💀 撤离失败（第4~7名）'}</h2>
+    <div class="settle-row"><span>本局总资产</span><b class="cash">${fmt(state.cash)}</b></div>
+    ${bonus?`<div class="settle-row"><span>🔐 加密钱包 +5%</span><b class="up">+${fmt(bonus)}</b></div>`:''}
+    <div class="settle-row"><span>资金带出</span><b class="up">${fmt(carry)}</b></div>
+    <div class="settle-row"><span>奇物（${state.curios.map(id=>CURIO_BY_ID[id].ic).join('')||'无'}）</span><b>${curioLine}</b></div>
+    <div class="settle-row"><span>手牌</span><b>✅ 存入随身牌库（无条件保留）</b></div>
+    <div class="settle-row" style="border:none"><span>银行变化</span>
+      <b class="${carry-state.bringIn>=0?'up':'down'}">${carry-state.bringIn>=0?'+':''}${fmt(carry-state.bringIn)}</b></div>
+    <div class="rank-badge">🏦 银行总资产 ${fmt(state.bank)}</div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="location.reload()">回到准备界面 ▸</button></div>`);
+}
+
+/* ---------- 工具 ---------- */
+function pick(arr){return arr[(Math.random()*arr.length)|0];}
+function showModal(html){$('#modalBox').innerHTML=html;$('#modalBg').classList.add('on');}
+function closeModal(){$('#modalBg').classList.remove('on');}
+let toastT;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2400);}
+
+initPrep();
+</script>
+</body>
+</html>
