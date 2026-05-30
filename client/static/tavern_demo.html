@@ -335,18 +335,50 @@ const DIRS=['看涨','看跌','观望'];
 const STRENGTH=['低','中','高'];
 const MODES=['真心','虚张声势','反向喊话'];   // 发言策略（识别语气卡可揭示）
 
-const STOCKS=[
-  {code:'600301',name:'东海化工',price:24.1,chg:2.1,pos:500,industry:'精细化工 / 3D打印耗材',
-    desc:'国内领先的精细化工企业，近年重金押注 3D 打印耗材赛道，是少数能量产高端打印粉末/线材的公司。关注题材：3D打印、消费电子、出口管制。对"独家供货""出口放开""环保限产"类新闻最敏感。'},
-  {code:'600188',name:'兆芯半导',price:88.5,chg:-1.4,pos:0,industry:'半导体 / 芯片设计',
-    desc:'专注通用 CPU 与芯片设计的半导体厂商，主打国产替代。关注题材：半导体、信创、晶圆良率。对"良率被约谈""新芯片流片""海外巨头降价"类新闻敏感。'},
-  {code:'300750',name:'瀚海动力',price:156.2,chg:0.8,pos:200,industry:'动力电池 / 储能',
-    desc:'动力电池与储能系统供应商，海外储能订单占比高。关注题材：储能、动力电池、补贴政策。对"海外储能大单""补贴新政""仓库起火"类新闻敏感。'},
-  {code:'002594',name:'比迪新能',price:41.7,chg:-0.5,pos:0,industry:'新能源整车',
-    desc:'新能源整车制造商，主打性价比车型，月度交付量是市场焦点。关注题材：新能源车、价格战、电池安全。对"交付超预期""大幅降价""电池隐患"类新闻敏感。'},
-  {code:'688981',name:'中芯微电',price:62.3,chg:3.2,pos:0,industry:'晶圆代工 / 微电子',
-    desc:'晶圆代工与微电子制造企业，车规芯片是新增长点。关注题材：芯片代工、车规芯片、国家大基金。对"大基金增资""车企定点量产""核心高管离职"类新闻敏感。'},
+const STOCK_POOL=[
+  {code:'600301',name:'东海化工',  price:24.1, chg:2.1, industry:'精细化工 / 3D打印耗材',
+   desc:'国内领先的精细化工企业，近年重金押注 3D 打印耗材赛道，是少数能量产高端打印粉末/线材的公司。关注题材：3D打印、消费电子、出口管制。对"独家供货""出口放开""环保限产"类新闻最敏感。'},
+  {code:'600188',name:'兆芯半导',  price:88.5, chg:-1.4,industry:'半导体 / 芯片设计',
+   desc:'专注通用 CPU 与芯片设计的半导体厂商，主打国产替代。关注题材：半导体、信创、晶圆良率。对"良率被约谈""新芯片流片""海外巨头降价"类新闻敏感。'},
+  {code:'300750',name:'瀚海动力',  price:156.2,chg:0.8, industry:'动力电池 / 储能',
+   desc:'动力电池与储能系统供应商，海外储能订单占比高。关注题材：储能、动力电池、补贴政策。对"海外储能大单""补贴新政""仓库起火"类新闻敏感。'},
+  {code:'002594',name:'比迪新能',  price:41.7, chg:-0.5,industry:'新能源整车',
+   desc:'新能源整车制造商，主打性价比车型，月度交付量是市场焦点。关注题材：新能源车、价格战、电池安全。对"交付超预期""大幅降价""电池隐患"类新闻敏感。'},
+  {code:'688981',name:'中芯微电',  price:62.3, chg:3.2, industry:'晶圆代工 / 微电子',
+   desc:'晶圆代工与微电子制造企业，车规芯片是新增长点。关注题材：芯片代工、车规芯片、国家大基金。对"大基金增资""车企定点量产""核心高管离职"类新闻敏感。'},
+  {code:'000876',name:'新希望农牧',price:15.8, chg:0.3, industry:'农牧 / 食品加工',
+   desc:'农牧饲料与养殖龙头，生猪和饲料双主线。关注题材：猪周期、大宗农产品、消费回暖。对"猪价反转""豆粕暴涨""消费补贴"类新闻敏感。'},
+  {code:'601318',name:'平安融保',  price:52.6, chg:-0.8,industry:'综合金融 / 保险',
+   desc:'综合金融与保险集团，投资资产规模庞大。关注题材：金融开放、利率政策、地产风险。对"降息""险资入市""地产暴雷"类新闻敏感。'},
+  {code:'300059',name:'东方络联',  price:38.2, chg:1.5, industry:'互联网金融 / 券商科技',
+   desc:'互联网金融信息服务商，日活投资者超千万。关注题材：市场情绪、成交量、金融科技。对"万亿成交""新股民入场""监管规范"类新闻敏感。'},
+  {code:'600519',name:'天酿酒业',  price:168.0,chg:-0.3,industry:'白酒 / 消费',
+   desc:'白酒龙头，品牌护城河宽、现金流稳定。关注题材：消费升级、渠道库存、提价。对"提价计划""渠道压货""消费降级"类新闻敏感。'},
+  {code:'000725',name:'京彩光电',  price:9.3,  chg:0.6, industry:'面板 / 显示器件',
+   desc:'液晶面板与新型显示器件制造商，周期性强。关注题材：面板价格、OLED、VR。对"面板价格回暖""韩国产能退出""VR头盔放量"类新闻敏感。'},
+  {code:'603259',name:'药明数康',  price:92.1, chg:1.3, industry:'CXO / 医药外包',
+   desc:'医药研发外包（CXO）龙头，高度依赖海外客户。关注题材：创新药、生物安全、地缘风险。对"海外制裁""新药获批""临床进展"类新闻敏感。'},
+  {code:'002475',name:'立讯集成',  price:31.5, chg:-1.1,industry:'精密制造 / 消费电子',
+   desc:'精密零部件与组装代工企业，苹果链核心供应商。关注题材：消费电子周期、苹果新品、供应链迁移。对"苹果订单""越南建厂""去中国化"类新闻敏感。'},
+  {code:'600104',name:'上汽联创',  price:23.8, chg:0.2, industry:'传统汽车 / 转型新能源',
+   desc:'传统汽车巨头，正全力转型新能源。关注题材：汽车出口、合资品牌、智驾。对"出口创新高""合资利润腰斩""智驾合作"类新闻敏感。'},
+  {code:'300124',name:'汇川自控',  price:73.4, chg:-0.6,industry:'工业自动化 / 机器人',
+   desc:'工业自动化与伺服系统供应商，机器人概念正热。关注题材：机器人政策、工业升级、国产替代。对"机器人利好""制造业回暖""核心部件突破"类新闻敏感。'},
+  {code:'002230',name:'科大讯声',  price:55.9, chg:1.8, industry:'AI语音 / 人工智能',
+   desc:'AI语音与自然语言处理龙头，大模型概念股。关注题材：AI政策、大模型落地、教育。对"大模型备案""AI+教育""算力补贴"类新闻敏感。'},
 ];
+// 每局从池中随机选 5 只，新闻库也同步按 code 匹配
+function pickStocks(){
+  const pool=STOCK_POOL.map((s,i)=>({...s,i}));
+  const selected=[];
+  for(let i=0;i<5;i++){
+    const idx=(Math.random()*pool.length)|0;
+    selected.push({...pool[idx],pos:0,_hist:null});
+    pool.splice(idx,1);
+  }
+  return selected;
+}
+let STOCKS=pickStocks();
 
 // 今日新闻库（开盘随机播报 0~3 条，玩家自行推理影响哪只股、利好利空、真假）
 // target: 个股代码 或 'ALL'(大盘) ；dir: +1 利好 / -1 利空（玩家不可见，结算时若为"真"则生效）
@@ -471,7 +503,7 @@ const state={
 };
 
 const $=s=>document.querySelector(s);
-const fmt=n=>'¥'+Math.round(n).toLocaleString();
+const fmt=n=>{const v=Math.round(n); return '¥'+v.toLocaleString('zh-CN');};
 
 /* ---------- 准备界面 ---------- */
 function initPrep(){
@@ -485,25 +517,41 @@ function initPrep(){
   const sl=$('#bringSlider');
   sl.oninput=()=>{state.bringIn=+sl.value;$('#bringVal').textContent=fmt(+sl.value)};
   $('#startBtn').onclick=startRound;
-  // 读取持久化的银行总资产（跨局/跨刷新保留）
-  state.bank=Math.round(+(localStorage.getItem('sd_bank')||100000));
+  // 银行总资产：整数。首次 = ¥500,000；之后跨局持久化。
+  state.bank = 500000;
+  const saved=localStorage.getItem('sd_bank');
+  if(saved){ const v=Math.round(+saved); if(v>=50000) state.bank=v; }
+  state.bringIn = 80000;  // 滑条默认值
   updatePrep();
 }
 function updatePrep(){
   $('#bankNum').textContent=fmt(state.bank);
-  const sl=$('#bringSlider');
-  const minB=Math.min(50000,state.bank), maxB=Math.max(minB,state.bank);
+  const minB=50000, maxB=Math.max(minB, state.bank);
+  const sl=$('#bringSlider'); if(!sl)return;
   sl.min=minB; sl.max=maxB; sl.step=1000;
-  if(state.bringIn>maxB||state.bringIn<minB) state.bringIn=Math.min(80000,maxB);
+  state.bringIn=Math.round(Math.min(maxB, Math.max(minB, state.bringIn||80000)));
   sl.value=state.bringIn; $('#bringVal').textContent=fmt(state.bringIn);
+  // 确保滑条事件被正确绑定（先解绑再重绑，避免重复）
+  const old=sl._handler;
+  if(old) sl.removeEventListener('input', old);
+  const h=()=>{ state.bringIn=Math.round(+sl.value); $('#bringVal').textContent=fmt(state.bringIn); };
+  sl.addEventListener('input', h); sl._handler=h;
 }
 function startRound(){
+  // 判定：带入额不得大于银行余额；银行必须 >0
+  if(state.bringIn > state.bank){ toast('💰 您的资金不足！\n本局带入 ¥'+state.bringIn.toLocaleString()+' 超过银行余额 ¥'+state.bank.toLocaleString()+'\n请调低带入金额或等待银行资产增长。'); return; }
+  if(state.bank <= 0){ toast('💸 银行账户已清零，游戏无法继续。'); return; }
+  // 从银行扣除本局带入额（真金白银的 stake）
+  state.bank = Math.max(0, Math.round(state.bank - state.bringIn));
+  localStorage.setItem('sd_bank', state.bank);
+  STOCKS = pickStocks();                                  // 每局从 15 只池随机抽 5 只
   state.cash=state.bringIn; state.day=1; state.phase='news';
   state.curios=[]; state.feeFreeToday=false; state.levBlessToday=false; state.firstInfoUsedToday=false; state.momentumOn=false; state.stopLossToday=false; state.winrateOn=false;
   state.maxAp=dailyMaxAp(); state.ap=state.maxAp;
   state.history=[]; state.dayTrades=[];                 // 清空上一局复盘
+  STOCKS.forEach(s=>{ s.pos=0; s._hist=buildHist(s.price); });  // 重置持仓 + K线
+  state.selStock=0;
   AIS.forEach(a=>a._assets=state.bringIn); state.rank=1; // 6 AI 与玩家同起点资产
-  STOCKS.forEach(s=>{ s._hist=buildHist(s.price); });   // 初始化稳定 K 线
   // 本局奇物商店随机上架 4 件
   state.shopStock=CURIOS.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,4);
   $('#prep').style.display='none'; $('#game').classList.add('on');
@@ -612,11 +660,12 @@ function pickNews(){
   const list=[], used=[];
   for(let k=0;k<count;k++){
     let target,industry;
-    if(Math.random()<0.3){ target='ALL'; industry='大盘 / 宏观'; }   // 30% 大盘
+    if(Math.random()<0.2){ target='ALL'; industry='大盘 / 宏观'; }   // 20% 大盘
     else{
       const avail=STOCKS.filter(s=>!used.includes(s.code));
-      const s=(avail.length?avail:STOCKS)[(Math.random()*(avail.length||STOCKS.length))|0];
-      target=s.code; industry=s.industry; used.push(s.code);
+      const s= avail.length ? avail[(Math.random()*avail.length)|0] : STOCKS[(Math.random()*STOCKS.length)|0];
+      if(s){ target=s.code; industry=s.industry; used.push(s.code); }
+      else{ target='ALL'; industry='大盘 / 宏观'; }
     }
     const dir=Math.random()<0.5?1:-1;        // 利好/利空（隐藏，结算用）
     const real=Math.random()<0.6;            // 真:假 ≈ 6:4（隐藏，结算用）
@@ -625,12 +674,18 @@ function pickNews(){
   state._newsList=list;
   fetchNewsText();   // 异步升级为 AI 生成文案
 }
-// 本地兜底文案（API 不可用时用，优先复用已写好的新闻库）
+// 本地兜底文案（API 不可用时用，优先复用已写好的新闻库，其次用股票数据合成）
 function localNewsText(target,dir){
+  // 优先匹配预写新闻库
   const cands=NEWS_POOL.filter(n=>n.target===target && n.dir===dir);
   if(cands.length) return cands[(Math.random()*cands.length)|0].text;
-  const name=target==='ALL'?'大盘':(STOCKS.find(s=>s.code===target)?.name||'某股');
-  return dir>0?`传 ${name} 有重大利好消息流出，资金闻风而动。`:`传 ${name} 遭遇利空，市场情绪转弱。`;
+  // 回退：用 STOCK_POOL 的公司数据合成
+  if(target==='ALL') return dir>0?`利好传闻推动大盘情绪回暖。`:`利空消息拖累大盘走弱。`;
+  const s=STOCK_POOL.find(x=>x.code===target);
+  const name=s?s.name:'某股', ind=s?s.industry:'';
+  const plus=[`传 ${name} 获得大额订单，业绩有望超预期。`,`${name} 关键产品良率突破，产能释放可期。`,`有消息称 ${name} 即将获一笔战略注资。`];
+  const minus=[`传 ${name} 遭遇供应链问题，部分产线承压。`,`市场担忧 ${name} 竞争加剧，估值承压。`,`${name} 管理团队变动，引发投资者不安。`];
+  return (dir>0?plus:minus)[(Math.random()*3)|0];
 }
 // 用 DeepSeek 为今日新闻生成生动文案（失败保留本地文案）
 async function fetchNewsText(){
@@ -1175,12 +1230,23 @@ function doSettle(){
   // 基于真实总资产排名（玩家 vs 6 AI），不再温和随机
   const ptotal=playerTotal();
   state.rank=1+AIS.filter(a=>a._assets>ptotal).length;
+  // 生成 AI 当日模拟交易（复盘用：方向 × 强度 → 哪只股 + 价格 + 数量）
+  const aiTrades=AIS.map(a=>{
+    const s=pick(STOCKS);
+    const sign=a._dir==='看涨'?1:(a._dir==='看跌'?-1:0);
+    if(sign===0) return {face:a.face,name:a.name,action:'观望'};
+    const qty=Math.round((a._str==='高'?800:(a._str==='中'?500:200))*(Math.random()*0.6+0.7));
+    const price=+(s.price*(1+sign*Math.random()*0.04)).toFixed(2);
+    return {face:a.face,name:a.name,action:sign>0?'买入':'卖出',stock:s.name,qty,price,
+      amt:Math.round(price*qty)};
+  });
   // 记录当日快照，供七日复盘
   state.history.push({
     day: state.day, pnl,
     news: (state._newsList||[]).map(n=>({text:n.text,target:n.target,dir:n.dir,real:n.real})),
     ais: AIS.map(a=>({face:a.face,name:a.name,dir:a._dir,mode:a._mode,str:a._str})),
     trades: state.dayTrades.slice(),
+    aiTrades,
     moves: STOCKS.map(s=>({name:s.name,move:s._move})),
   });
   state.dayTrades=[];
@@ -1217,29 +1283,44 @@ function nextDay(){
 function doExtract(){
   const ok=state.rank<=3;
   const base=playerTotal();          // 清算：现金 + 持仓市值
-  // 加密钱包：撤离成功带出资金 +5%
-  const bonus = (ok && hasCurio('CUR-09')) ? Math.round(base*0.05) : 0;
-  const carry = base + bonus;
-  state.bank=Math.round(state.bank-state.bringIn+carry);
-  localStorage.setItem('sd_bank', state.bank);   // 持久化银行总资产
-  // 奇物去留：成功全保留；失败销毁（保险箱可留 1 件）
-  let curioLine;
-  if(ok) curioLine=state.curios.length?'✅ 收入仓库（可复用）':'（本局未购奇物）';
-  else if(hasCurio('CUR-10')) curioLine='⚠ 失败销毁，但🏦保险箱保留 1 件';
-  else curioLine=state.curios.length?'❌ 全部销毁':'（本局未购奇物）';
-  showModal(`
-    <h2>${ok?'🏆 撤离成功（前三）':'💀 撤离失败（第4~7名）'}</h2>
-    <div class="settle-row"><span>本局总资产（现金+持仓）</span><b class="cash">${fmt(base)}</b></div>
-    ${bonus?`<div class="settle-row"><span>🔐 加密钱包 +5%</span><b class="up">+${fmt(bonus)}</b></div>`:''}
-    <div class="settle-row"><span>资金带出</span><b class="up">${fmt(carry)}</b></div>
-    <div class="settle-row"><span>奇物（${state.curios.map(id=>CURIO_BY_ID[id].ic).join('')||'无'}）</span><b>${curioLine}</b></div>
-    <div class="settle-row"><span>手牌</span><b>✅ 存入随身牌库（无条件保留）</b></div>
-    <div class="settle-row" style="border:none"><span>银行变化</span>
-      <b class="${carry-state.bringIn>=0?'up':'down'}">${carry-state.bringIn>=0?'+':''}${fmt(carry-state.bringIn)}</b></div>
-    <div class="rank-badge">🏦 银行总资产 ${fmt(state.bank)}</div>
-    <div class="modal-actions"><button class="btn" id="reviewBtn">📜 七日复盘</button><button class="btn btn-primary" id="toPrepBtn">回到准备界面 ▸</button></div>`);
-  $('#toPrepBtn').onclick=backToPrep;
-  $('#reviewBtn').onclick=showReview;
+  let bankBefore=state.bank;
+  if(ok){
+    // 🏆 撤离成功：本局赚的全部回归银行
+    const bonus = hasCurio('CUR-09') ? Math.round(base*0.05) : 0;
+    state.bank = Math.round(state.bank + base + bonus);
+    localStorage.setItem('sd_bank', state.bank);
+    const cur=state.curios.length?`✅ 收入仓库（共 ${state.curios.length} 件，可复用）`:'（本局未购奇物）';
+    showModal(`
+      <h2>🏆 撤离成功（前三）</h2>
+      <div class="settle-row"><span>本局总资产（现金+持仓）</span><b class="cash">${fmt(base)}</b></div>
+      ${bonus?`<div class="settle-row"><span>🔐 加密钱包 +5%</span><b class="up">+${fmt(bonus)}</b></div>`:''}
+      <div class="settle-row"><span>汇入银行</span><b class="up">${fmt(base+bonus)}</b></div>
+      <div class="settle-row"><span>奇物（${state.curios.map(id=>CURIO_BY_ID[id].ic).join('')||'无'}）</span><b>${cur}</b></div>
+      <div class="settle-row"><span>手牌</span><b>✅ 存入随身牌库（无条件保留）</b></div>
+      <div class="settle-row" style="border:none"><span>银行资产</span>
+        <b class="up">${fmt(bankBefore)} → ${fmt(state.bank)}（+${fmt(base+bonus)}）</b></div>
+      <div class="rank-badge">🏦 银行总资产 ${fmt(state.bank)}</div>
+      <div class="modal-actions"><button class="btn" id="reviewBtn">📜 七日复盘</button><button class="btn btn-primary" id="toPrepBtn">回到准备界面 ▸</button></div>`);
+    $('#toPrepBtn').onclick=backToPrep;
+    $('#reviewBtn').onclick=showReview;
+  }else{
+    // 💀 撤离失败：本局带走的钱血本无归（开局已扣，不归还）
+    localStorage.setItem('sd_bank', state.bank);
+    const cur=hasCurio('CUR-10')?'⚠ 失败销毁，但🏦保险箱保留 1 件':(state.curios.length?'❌ 全部销毁':'（本局未购奇物）');
+    showModal(`
+      <h2>💀 撤离失败（第4~7名）</h2>
+      <div class="settle-row"><span>本局总资产</span><b class="cash">${fmt(base)}</b></div>
+      <div class="settle-row" style="color:var(--up)"><span>本局带入（已扣除）</span><b>−${fmt(state.bringIn)}</b></div>
+      <div class="settle-row"><span>失败惩罚</span><b style="color:var(--up)">带入资金无法收回</b></div>
+      <div class="settle-row"><span>奇物（${state.curios.map(id=>CURIO_BY_ID[id].ic).join('')||'无'}）</span><b>${cur}</b></div>
+      <div class="settle-row"><span>手牌</span><b>✅ 存入随身牌库（无条件保留）</b></div>
+      <div class="settle-row" style="border:none"><span>银行资产</span>
+        <b class="up">${fmt(bankBefore)}（不变，本次亏损 ¥${fmt(state.bringIn)}）</b></div>
+      <div class="rank-badge">🏦 银行总资产 ${fmt(state.bank)}</div>
+      <div class="modal-actions"><button class="btn" id="reviewBtn">📜 七日复盘</button><button class="btn btn-primary" id="toPrepBtn">回到准备界面 ▸</button></div>`);
+    $('#toPrepBtn').onclick=backToPrep;
+    $('#reviewBtn').onclick=showReview;
+  }
 }
 // 七日复盘：逐日展示 新闻真相 / 我的成交额 / 每个AI的真实交易意图
 function showReview(){
@@ -1252,12 +1333,17 @@ function showReview(){
     const sellAmt=h.trades.filter(t=>t.side==='卖').reduce((a,t)=>a+t.amt,0);
     const trades=h.trades.length?h.trades.map(t=>
       `<div>${t.side==='买'?'🟢':'🔴'} ${t.side} ${t.stock} ${t.qty}股 @${t.price.toFixed(2)} = <b>${fmt(t.amt)}</b></div>`).join(''):'<div class="d">当日无成交</div>';
+    const aacts=(h.aiTrades||[]).map(t=>{
+      if(t.action==='观望') return `<div>${t.face}${t.name}：观望未操作</div>`;
+      return `<div>${t.face}${t.name}：${t.action==='买入'?'🟢买':'🔴卖'} ${t.stock} ${t.qty}股 @${t.price.toFixed(2)} ≈<b>${fmt(t.amt)}</b></div>`;
+    }).join('');
     const ais=h.ais.map(a=>`<div>${a.face}${a.name}：<span class="y">${a.dir}</span> · ${a.mode} · 强${a.str}</div>`).join('');
     return `<div class="rv-day">
       <div class="rv-h">第 ${h.day} 日　<span class="${h.pnl>=0?'g':'r'}">持仓盈亏 ${h.pnl>=0?'+':''}${fmt(h.pnl)}</span></div>
       <div class="rv-sec"><div class="rv-t">📰 新闻真相</div>${news}</div>
       <div class="rv-sec"><div class="rv-t">💰 我的成交（买入 ${fmt(buyAmt)} / 卖出 ${fmt(sellAmt)}）</div>${trades}</div>
-      <div class="rv-sec"><div class="rv-t">🤖 各AI真实意图（方向·策略·强度）</div>${ais}</div>
+      <div class="rv-sec"><div class="rv-t">🤖 AI 真实操作（买了什么·什么价格）</div>${aacts}</div>
+      <div class="rv-sec"><div class="rv-t" style="font-size:.7rem;color:var(--dim)">（AI 策略依据：真实方向·发言模式·强度）</div>${ais}</div>
     </div>`;
   }).join('');
   showModal(`<h2>📜 七日复盘</h2>
@@ -1267,8 +1353,9 @@ function showReview(){
 // 回到准备界面：保留 银行/随身手牌，重置回合级状态（不刷新页面，避免银行清零）
 function backToPrep(){
   closeModal();
-  state.day=1; state.phase='news'; state.rank=1;
-  state.curios=[]; state.shopStock=[];
+  STOCKS=pickStocks(); STOCKS.forEach(s=>{s.pos=0;s._hist=null;});
+  state.selStock=0; state.day=1; state.phase='news'; state.rank=1;
+  state.curios=[]; state.shopStock=[]; state.cash=state.bringIn;
   state.feeFreeToday=false; state.levBlessToday=false; state.firstInfoUsedToday=false;
   state.momentumOn=false; state.stopLossToday=false; state.winrateOn=false;
   state._bubble=null; state._newsList=[]; state.pendingCard=null;
