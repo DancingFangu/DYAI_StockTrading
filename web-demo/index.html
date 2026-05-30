@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 代理投资 7 日挑战</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">AI Agent Trading Demo</p>
+          <h1>7 日交易挑战</h1>
+        </div>
+        <div class="session-card">
+          <span>第 <strong id="dayLabel">1</strong> / 7 日</span>
+          <span id="timerLabel">15:00</span>
+          <button id="nextDayBtn" type="button">结束今日交易</button>
+        </div>
+      </section>
+
+      <section class="dashboard">
+        <article class="panel event-panel">
+          <div class="panel-heading">
+            <h2>今日事件</h2>
+            <span id="eventType" class="tag">利好</span>
+          </div>
+          <h3 id="eventTitle">政策利好</h3>
+          <p id="eventDesc">新能源板块受到资金关注。</p>
+        </article>
+
+        <article class="panel account-panel">
+          <div class="metric">
+            <span>现金</span>
+            <strong id="cashLabel">100,000</strong>
+          </div>
+          <div class="metric">
+            <span>总资产</span>
+            <strong id="assetLabel">100,000</strong>
+          </div>
+          <div class="metric">
+            <span>收益率</span>
+            <strong id="returnLabel">0.00%</strong>
+          </div>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <article class="panel market-panel">
+          <div class="panel-heading">
+            <h2>五只虚拟股票</h2>
+            <span>点击一只股票进行交易</span>
+          </div>
+          <div id="stockList" class="stock-list"></div>
+        </article>
+
+        <aside class="side-stack">
+          <article class="panel trade-panel">
+            <div class="panel-heading">
+              <h2>交易面板</h2>
+              <span id="selectedStockLabel">科技股</span>
+            </div>
+            <label>
+              数量
+              <input id="quantityInput" type="number" min="1" value="100" step="10" />
+            </label>
+            <div class="trade-actions">
+              <button id="buyBtn" class="buy" type="button">买入</button>
+              <button id="sellBtn" class="sell" type="button">卖出</button>
+            </div>
+            <p id="tradeHint" class="hint">按当前价格立即成交。</p>
+          </article>
+
+          <article class="panel positions-panel">
+            <div class="panel-heading">
+              <h2>我的持仓</h2>
+            </div>
+            <div id="positionsList" class="positions-list"></div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="workspace lower">
+        <article class="panel agents-panel">
+          <div class="panel-heading">
+            <h2>AI 交易员动向</h2>
+            <span>每 15 秒自动行动</span>
+          </div>
+          <div id="agentList" class="agent-list"></div>
+        </article>
+
+        <article class="panel log-panel">
+          <div class="panel-heading">
+            <h2>交易日志</h2>
+            <button id="resetBtn" type="button">重新开始</button>
+          </div>
+          <div id="logList" class="log-list"></div>
+        </article>
+      </section>
+
+      <section id="resultModal" class="result-modal" hidden>
+        <div class="result-card">
+          <p class="eyebrow">Game Result</p>
+          <h2 id="resultTitle">稳健交易员</h2>
+          <p id="resultDesc">你的最终资产为 100,000 测试金。</p>
+          <button id="playAgainBtn" type="button">再玩一轮</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

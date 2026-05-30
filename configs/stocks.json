@@ -1,0 +1,33 @@
+[
+  {
+    "stock_id": "tech",
+    "name": "科技股",
+    "initial_price": 42.8,
+    "risk_level": "high"
+  },
+  {
+    "stock_id": "energy",
+    "name": "新能源股",
+    "initial_price": 31.6,
+    "risk_level": "high"
+  },
+  {
+    "stock_id": "medical",
+    "name": "医药股",
+    "initial_price": 26.4,
+    "risk_level": "medium"
+  },
+  {
+    "stock_id": "bank",
+    "name": "银行股",
+    "initial_price": 18.2,
+    "risk_level": "low"
+  },
+  {
+    "stock_id": "consumer",
+    "name": "消费股",
+    "initial_price": 23.9,
+    "risk_level": "medium"
+  }
+]
+

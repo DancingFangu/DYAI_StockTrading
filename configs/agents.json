@@ -1,0 +1,39 @@
+[
+  {
+    "agent_id": "trend_follower",
+    "name": "林澈",
+    "role_file": "roles/trend_follower.role.md",
+    "style": "trend"
+  },
+  {
+    "agent_id": "value_investor",
+    "name": "许砚",
+    "role_file": "roles/value_investor.role.md",
+    "style": "value"
+  },
+  {
+    "agent_id": "aggressive_speculator",
+    "name": "周燃",
+    "role_file": "roles/aggressive_speculator.role.md",
+    "style": "aggressive"
+  },
+  {
+    "agent_id": "conservative_trader",
+    "name": "沈宁",
+    "role_file": "roles/conservative_trader.role.md",
+    "style": "conservative"
+  },
+  {
+    "agent_id": "news_trader",
+    "name": "夏闻",
+    "role_file": "roles/news_trader.role.md",
+    "style": "news"
+  },
+  {
+    "agent_id": "contrarian_trader",
+    "name": "顾回",
+    "role_file": "roles/contrarian_trader.role.md",
+    "style": "contrarian"
+  }
+]
+

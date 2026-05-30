@@ -1,0 +1,26 @@
+[
+  {
+    "event_id": "policy_energy",
+    "type": "positive",
+    "title": "政策支持新能源",
+    "description": "补贴预期升温，新能源股受到关注。",
+    "impact": {
+      "energy": 0.07,
+      "tech": 0.02
+    }
+  },
+  {
+    "event_id": "market_panic",
+    "type": "extreme",
+    "title": "突发恐慌抛售",
+    "description": "全市场短线下挫，但可能出现反弹机会。",
+    "impact": {
+      "tech": -0.08,
+      "energy": -0.09,
+      "medical": -0.05,
+      "bank": -0.02,
+      "consumer": -0.05
+    }
+  }
+]
+
