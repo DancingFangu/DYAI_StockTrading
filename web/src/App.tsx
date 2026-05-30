@@ -1,15 +1,22 @@
-import { CSSProperties, FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type StockId = "tech" | "energy" | "medical" | "bank" | "consumer";
 type Screen = "start" | "game" | "result";
+type GamePhase = "speech" | "select-cards" | "action" | "review";
+type CardId = "position" | "tone" | "followup" | "flow" | "news";
+type Direction = "buy" | "sell" | "hold";
+type Strength = "low" | "medium" | "high";
+type SpeechMode = "truth" | "vague" | "half_truth" | "bluff";
+type NewsImpact = "major_positive" | "minor_positive" | "neutral" | "minor_negative" | "major_negative";
 
 type Stock = {
   id: StockId;
+  code: string;
   name: string;
+  sector: string;
   price: number;
   previousPrice: number;
-  risk: string;
-  baseVolume: number;
+  history: number[];
 };
 
 type Position = {
@@ -17,525 +24,520 @@ type Position = {
   avgCost: number;
 };
 
-type EventCard = {
+type NewsEvent = {
   title: string;
   description: string;
-  impact: Partial<Record<StockId, number>>;
+  target: StockId;
+  truth: boolean;
+  effect: "positive" | "negative";
 };
 
 type Agent = {
   id: string;
   name: string;
-  role: string;
-  favorite: StockId;
   avatar: string;
-  line: string;
+  favorite: StockId;
+  fallbackLine: string;
 };
 
-type AssetRow = {
-  label: string;
-  quantity?: number;
-  price?: number;
-  value: number;
+type AgentState = {
+  agentId: string;
+  publicMessage: string;
+  targetStock: StockId;
+  direction: Direction;
+  strength: Strength;
+  speechMode: SpeechMode;
+  yesterdayReturn: number;
+  rank: number;
 };
 
-type DaySummary = {
+type InfoCard = {
+  id: CardId;
+  name: string;
+  icon: string;
+  cost: number;
+  effect: string;
+};
+
+type Investigation = {
+  day: number;
+  cardId: CardId;
+  cardName: string;
+  target: string;
+  shownResult: string;
+  truthful: boolean;
+};
+
+type StockMove = {
+  stockId: StockId;
+  baseDice: number;
+  newsImpact: NewsImpact;
+  successProbability: number;
+  agentModifiers: Array<{ agentId: string; direction: Direction; strength: Strength; value: number }>;
+  finalDice: number;
+  rolls: number[];
+  successes: number;
+  change: number;
+};
+
+type ReviewSummary = {
   day: number;
   beforeAsset: number;
   afterAsset: number;
-  rows: AssetRow[];
+  newsResult: string;
+  stockMoves: StockMove[];
+  investigations: Investigation[];
+  actions: string[];
 };
-
-type Prediction = {
-  stockId: StockId;
-  direction: "up" | "down";
-} | null;
 
 const START_CASH = 100000;
 const MAX_DAY = 7;
-const DAY_SECONDS = 120;
-const TICK_SECONDS = 5;
+const ACTION_POINTS_PER_DAY = 4;
+const MAX_HAND_CARDS = 2;
 const API_BASE_URL = "http://127.0.0.1:8000";
-const PREDICTION_REWARD = 3000;
-const PREDICTION_PENALTY = 2000;
-
-const t = {
-  eyebrow: "AI Agent Trading Game",
-  title: "\u0037 \u65e5\u4ea4\u6613\u6311\u6218",
-  summary:
-    "\u626e\u6f14\u4ea4\u6613\u5458\uff0c\u7528\u6d4b\u8bd5\u8d44\u91d1\u5728 7 \u4e2a\u4ea4\u6613\u65e5\u5185\u4e70\u5356 5 \u53ea\u865a\u62df\u80a1\u7968\u3002\u89c2\u5bdf\u968f\u673a\u4e8b\u4ef6\u548c AI \u4ea4\u6613\u5458\u52a8\u5411\uff0c\u8ba9\u6700\u7ec8\u8d44\u4ea7\u5c3d\u53ef\u80fd\u589e\u957f\u3002",
-  playerName: "\u4ea4\u6613\u5458\u540d\u79f0",
-  placeholder: "\u8f93\u5165\u4f60\u7684\u540d\u5b57",
-  start: "\u5f00\u59cb\u6e38\u620f",
-  defaultName: "\u65b0\u624b\u4ea4\u6613\u5458",
-  rules: "\u8bd5\u73a9\u89c4\u5219",
-  cash: "\u73b0\u91d1",
-  asset: "\u603b\u8d44\u4ea7",
-  returnRate: "\u6536\u76ca\u7387",
-  event: "\u4eca\u65e5\u4e8b\u4ef6",
-  stocks: "\u80a1\u7968\u884c\u60c5",
-  kline: "K \u7ebf",
-  open: "\u5f00\u76d8",
-  high: "\u6700\u9ad8",
-  low: "\u6700\u4f4e",
-  volume: "\u6210\u4ea4\u91cf",
-  currentPrice: "\u73b0\u4ef7",
-  trade: "\u4ea4\u6613\u9762\u677f",
-  positions: "\u6211\u7684\u6301\u4ed3",
-  agents: "AI \u4ea4\u6613\u5458",
-  log: "\u4ea4\u6613\u65e5\u5fd7",
-  quantity: "\u6570\u91cf",
-  buy: "\u4e70\u5165",
-  sell: "\u5356\u51fa",
-  nextDay: "\u7ed3\u675f\u4eca\u65e5\u4ea4\u6613",
-  ask: "\u6253\u63a2",
-  asked: "\u4eca\u65e5\u5df2\u6253\u63a2",
-  askLimit: "\u6bcf\u4e2a\u4ea4\u6613\u65e5\u53ea\u80fd\u6253\u63a2 1 \u4f4d AI \u4ea4\u6613\u5458\u3002",
-  restart: "\u91cd\u65b0\u5f00\u59cb",
-  noPosition: "\u6682\u65e0\u6301\u4ed3",
-  result: "\u7ed3\u7b97\u7ed3\u679c",
-  settlement: "\u65e5\u7ec8\u7ed3\u7b97",
-  beforeAsset: "\u7ed3\u7b97\u524d\u8d44\u4ea7",
-  afterAsset: "\u7ed3\u7b97\u540e\u8d44\u4ea7",
-  assetChange: "\u8d44\u4ea7\u53d8\u52a8",
-  assetList: "\u8d44\u4ea7\u6e05\u5355",
-  marketTitle: "A\u80a1\u5e02\u573a",
-  breadth: "\u6da8\u8dcc\u5206\u5e03",
-  marketRating: "\u5927\u76d8\u8bc4\u7ea7",
-  suggestion: "\u6295\u8d44\u5efa\u8bae",
-  stockTable: "\u4e2a\u80a1\u884c\u60c5",
-  rise: "\u4e0a\u6da8",
-  fall: "\u4e0b\u8dcc",
-  limitUp: "\u6da8\u505c",
-  limitDown: "\u8dcc\u505c",
-  todayReturn: "\u4eca\u6536\u76ca",
-  code: "\u4ee3\u7801",
-  name: "\u540d\u79f0",
-  turnover: "\u6210\u4ea4\u989d",
-  marketValue: "\u6d41\u901a\u5e02\u503c",
-  challenge: "\u4eca\u65e5\u6311\u6218",
-  challengeDesc: "\u6bcf\u4e2a\u4ea4\u6613\u65e5\u53ef\u5bf9\u5f53\u524d\u9009\u4e2d\u80a1\u7968\u9884\u6d4b 1 \u6b21\u3002\u731c\u5bf9 +3,000\uff0c\u731c\u9519 -2,000\u3002",
-  predictUp: "\u770b\u6da8",
-  predictDown: "\u770b\u8dcc",
-  predicted: "\u5df2\u9884\u6d4b",
-  rewardHit: "\u9884\u6d4b\u6210\u529f",
-  rewardMiss: "\u9884\u6d4b\u5931\u8d25",
-  liveTrading: "\u5b9e\u65f6\u4ea4\u6613",
-  timer: "\u4ea4\u6613\u5012\u8ba1\u65f6",
-  marketShock: "\u5e02\u573a\u51b2\u51fb",
-  pause: "\u6682\u505c",
-  resume: "\u7ee7\u7eed",
-  volatilityStrike: "\u9ad8\u6ce2\u52a8\u51b2\u51fb",
-  calm: "\u5e02\u573a\u6b63\u5728\u8fde\u7eed\u6ce2\u52a8",
-  aiThinking: "DeepSeek \u6b63\u5728\u5206\u6790\u5e02\u573a...",
-};
-
-const startRules = [
-  "\u5355\u4eba\u6a21\u5f0f\uff0c\u4e00\u8f6e 7 \u4e2a\u4ea4\u6613\u65e5",
-  "\u7b2c\u4e00\u7248\u56fa\u5b9a 5 \u53ea\u865a\u62df\u80a1\u7968",
-  "\u4e70\u5165\u548c\u5356\u51fa\u6309\u5f53\u524d\u4ef7\u7acb\u5373\u6210\u4ea4",
-  "AI \u4ee3\u7406\u4f1a\u6839\u636e\u4e8b\u4ef6\u81ea\u52a8\u884c\u52a8",
-  "\u7b2c 7 \u65e5\u7ed3\u675f\u540e\u6309\u603b\u8d44\u4ea7\u8bc4\u7ea7",
-];
 
 const initialStocks: Stock[] = [
-  { id: "tech", name: "\u79d1\u6280\u80a1", price: 42.8, previousPrice: 42.8, risk: "\u9ad8", baseVolume: 182000 },
-  { id: "energy", name: "\u65b0\u80fd\u6e90\u80a1", price: 31.6, previousPrice: 31.6, risk: "\u9ad8", baseVolume: 216000 },
-  { id: "medical", name: "\u533b\u836f\u80a1", price: 26.4, previousPrice: 26.4, risk: "\u4e2d", baseVolume: 128000 },
-  { id: "bank", name: "\u94f6\u884c\u80a1", price: 18.2, previousPrice: 18.2, risk: "\u4f4e", baseVolume: 94000 },
-  { id: "consumer", name: "\u6d88\u8d39\u80a1", price: 23.9, previousPrice: 23.9, risk: "\u4e2d", baseVolume: 112000 },
+  { id: "tech", code: "KJ-01", name: "云启科技", sector: "算力与AI终端", price: 42.8, previousPrice: 42.8, history: [38, 39, 41, 40, 42, 41, 43] },
+  { id: "energy", code: "NY-02", name: "西岭能源", sector: "储能与新能源车", price: 31.6, previousPrice: 31.6, history: [28, 29, 31, 30, 32, 33, 31] },
+  { id: "medical", code: "YY-03", name: "星辉生物", sector: "创新药与器械", price: 26.4, previousPrice: 26.4, history: [25, 24, 25, 27, 26, 28, 26] },
+  { id: "bank", code: "YH-04", name: "稳石银行", sector: "防守金融", price: 18.2, previousPrice: 18.2, history: [18, 18.3, 18.1, 18.4, 18.2, 18.5, 18.2] },
+  { id: "consumer", code: "XF-05", name: "春潮消费", sector: "连锁零售", price: 23.9, previousPrice: 23.9, history: [22, 23, 24, 23.5, 25, 24.2, 23.9] },
 ];
 
-const events: EventCard[] = [
+const newsEvents: NewsEvent[] = [
   {
-    title: "\u653f\u7b56\u652f\u6301\u65b0\u80fd\u6e90",
-    description: "\u8865\u8d34\u9884\u671f\u5347\u6e29\uff0c\u65b0\u80fd\u6e90\u80a1\u53d7\u5230\u8d44\u91d1\u5173\u6ce8\u3002",
-    impact: { energy: 0.08, tech: 0.02 },
+    title: "东海传闻",
+    description: "据传，云启科技董事昨夜飞往深圳，与一家公司密谈新一代算力终端的独家供货。",
+    target: "tech",
+    truth: true,
+    effect: "positive",
   },
   {
-    title: "\u5e02\u573a\u6050\u614c\u629b\u552e",
-    description: "\u9ad8\u98ce\u9669\u677f\u5757\u77ed\u7ebf\u627f\u538b\uff0c\u9632\u5fa1\u8d44\u4ea7\u76f8\u5bf9\u7a33\u5b9a\u3002",
-    impact: { tech: -0.07, energy: -0.08, medical: -0.04, bank: 0.01, consumer: -0.03 },
+    title: "补贴风声",
+    description: "市场传出储能补贴可能延续，西岭能源的渠道商开始提前锁货，但官方尚未确认。",
+    target: "energy",
+    truth: true,
+    effect: "positive",
   },
   {
-    title: "\u533b\u836f\u7814\u53d1\u7a81\u7834",
-    description: "\u533b\u836f\u80a1\u83b7\u5f97\u4e8b\u4ef6\u50ac\u5316\uff0c\u5e02\u573a\u5173\u6ce8\u5ea6\u4e0a\u5347\u3002",
-    impact: { medical: 0.07 },
+    title: "药审快报",
+    description: "星辉生物一款在研药物被传进入快速审评名单，多个交易员都在等消息落地。",
+    target: "medical",
+    truth: false,
+    effect: "positive",
   },
   {
-    title: "\u8d44\u91d1\u8f6e\u52a8",
-    description: "\u70ed\u70b9\u4ece\u6210\u957f\u677f\u5757\u5207\u6362\u5230\u7a33\u5b9a\u677f\u5757\u3002",
-    impact: { tech: -0.02, energy: -0.01, bank: 0.04, consumer: 0.02 },
+    title: "避险潮",
+    description: "外部市场突发波动，部分资金被传从高波动股票撤出，转向稳石银行一类防守资产。",
+    target: "bank",
+    truth: true,
+    effect: "positive",
   },
   {
-    title: "\u6d88\u8d39\u590d\u82cf",
-    description: "\u9700\u6c42\u56de\u6696\uff0c\u6d88\u8d39\u80a1\u51fa\u73b0\u660e\u663e\u4e70\u76d8\u3002",
-    impact: { consumer: 0.06, bank: 0.01 },
+    title: "消费降温",
+    description: "春潮消费的门店流水被传低于预期，供应商表示近期补货节奏明显放慢。",
+    target: "consumer",
+    truth: true,
+    effect: "negative",
+  },
+  {
+    title: "电池事故",
+    description: "网传某新能源车型发生电池事故，西岭能源被市场牵连，但事故源头仍不清楚。",
+    target: "energy",
+    truth: false,
+    effect: "negative",
+  },
+  {
+    title: "集采松动",
+    description: "医药集采价格传出边际改善，星辉生物的核心产品可能获得更高利润空间。",
+    target: "medical",
+    truth: true,
+    effect: "positive",
   },
 ];
 
 const agents: Agent[] = [
-  {
-    id: "trend",
-    name: "\u6797\u6f88",
-    role: "\u8d8b\u52bf\u8ffd\u968f\u8005",
-    favorite: "tech",
-    avatar: "trend",
-    line: "\u6211\u53ea\u5173\u5fc3\u8d8b\u52bf\u662f\u5426\u8fde\u7eed\u3002\u5982\u679c\u5f3a\u52bf\u80a1\u7ee7\u7eed\u4e0a\u6da8\uff0c\u6211\u4f1a\u52a0\u4ed3\u3002",
-  },
-  {
-    id: "value",
-    name: "\u8bb8\u781a",
-    role: "\u4ef7\u503c\u6295\u8d44\u8005",
-    favorite: "bank",
-    avatar: "value",
-    line: "\u6211\u66f4\u559c\u6b22\u4f4e\u98ce\u9669\u548c\u4ef7\u683c\u4e0d\u8d35\u7684\u673a\u4f1a\u3002\u4eca\u5929\u6211\u4f1a\u5c11\u505a\u51b2\u52a8\u4ea4\u6613\u3002",
-  },
-  {
-    id: "aggressive",
-    name: "\u5468\u71c3",
-    role: "\u6fc0\u8fdb\u6295\u673a\u8005",
-    favorite: "energy",
-    avatar: "aggressive",
-    line: "\u4eca\u5929\u6709\u6ce2\u52a8\u624d\u6709\u673a\u4f1a\u3002\u6211\u4f1a\u76ef\u7740\u6700\u5bb9\u6613\u88ab\u4e8b\u4ef6\u70b9\u71c3\u7684\u80a1\u3002",
-  },
-  {
-    id: "conservative",
-    name: "\u6c88\u5b81",
-    role: "\u4fdd\u5b88\u4ea4\u6613\u5458",
-    favorite: "bank",
-    avatar: "conservative",
-    line: "\u6211\u5148\u770b\u98ce\u9669\uff0c\u518d\u770b\u6536\u76ca\u3002\u5982\u679c\u5e02\u573a\u592a\u4e71\uff0c\u6211\u4f1a\u7559\u66f4\u591a\u73b0\u91d1\u3002",
-  },
-  {
-    id: "news",
-    name: "\u590f\u95fb",
-    role: "\u6d88\u606f\u4ea4\u6613\u5458",
-    favorite: "medical",
-    avatar: "news",
-    line: "\u4eca\u65e5\u4e8b\u4ef6\u5f88\u91cd\u8981\u3002\u6211\u4f1a\u4f18\u5148\u770b\u5b83\u5f71\u54cd\u6700\u76f4\u63a5\u7684\u80a1\u3002",
-  },
-  {
-    id: "contrarian",
-    name: "\u987e\u56de",
-    role: "\u53cd\u5411\u4ea4\u6613\u5458",
-    favorite: "consumer",
-    avatar: "contrarian",
-    line: "\u5927\u5bb6\u90fd\u5728\u8ffd\u7684\u65f6\u5019\uff0c\u6211\u4f1a\u5c0f\u5fc3\u3002\u5927\u5bb6\u90fd\u5728\u5356\u7684\u65f6\u5019\uff0c\u6211\u4f1a\u770b\u673a\u4f1a\u3002",
-  },
+  { id: "trend", name: "牛大胆", avatar: "trend", favorite: "tech", fallbackLine: "强的还会更强。我今天只看有连续性的票。" },
+  { id: "value", name: "稳健老哥", avatar: "value", favorite: "bank", fallbackLine: "热闹的地方不一定有钱赚，便宜和安全更重要。" },
+  { id: "aggressive", name: "抄底小子", avatar: "aggressive", favorite: "energy", fallbackLine: "波动越大越好，今天不刺激就没意思。" },
+  { id: "conservative", name: "价值少女", avatar: "conservative", favorite: "bank", fallbackLine: "我会先看风险，再决定要不要动手。" },
+  { id: "news", name: "趋势诗人", avatar: "news", favorite: "medical", fallbackLine: "新闻的味道不对，话不能只听表面。" },
+  { id: "contrarian", name: "佛系大叔", avatar: "contrarian", favorite: "consumer", fallbackLine: "大家都冲一个方向时，我反而想等一等。" },
 ];
+
+const cardDeck: InfoCard[] = [
+  { id: "position", name: "查仓", icon: "査", cost: 1, effect: "查看 1 名 AI 的真实目标股票与方向。" },
+  { id: "tone", name: "识别语气", icon: "语", cost: 1, effect: "判断 1 名 AI 的发言模式。" },
+  { id: "followup", name: "追问", icon: "问", cost: 1, effect: "让 1 名 AI 追加一句解释。" },
+  { id: "flow", name: "看资金流", icon: "流", cost: 1, effect: "查看 1 名 AI 的真实行动力度。" },
+  { id: "news", name: "对照新闻", icon: "闻", cost: 1, effect: "低概率受干扰，揭示新闻真假线索。" },
+];
+
+const directionText: Record<Direction, string> = { buy: "买入", sell: "卖出", hold: "观望" };
+const strengthText: Record<Strength, string> = { low: "低", medium: "中", high: "高" };
+const speechModeText: Record<SpeechMode, string> = {
+  truth: "真实",
+  vague: "模糊",
+  half_truth: "半真",
+  bluff: "误导",
+};
+
+const newsImpactText: Record<NewsImpact, string> = {
+  major_positive: "大利好",
+  minor_positive: "微利好",
+  neutral: "无影响",
+  minor_negative: "微利空",
+  major_negative: "大利空",
+};
+
+const newsImpactProbability: Record<NewsImpact, number> = {
+  major_positive: 0.8,
+  minor_positive: 0.6,
+  neutral: 0.5,
+  minor_negative: 0.4,
+  major_negative: 0.2,
+};
 
 function formatMoney(value: number) {
   return Math.round(value).toLocaleString("zh-CN");
 }
 
 function formatPercent(value: number) {
-  const sign = value >= 0 ? "+" : "";
-  return `${sign}${(value * 100).toFixed(2)}%`;
+  return `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`;
 }
 
-function formatClock(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return `${minutes}:${rest.toString().padStart(2, "0")}`;
+function stockName(stockId: StockId) {
+  return initialStocks.find((stock) => stock.id === stockId)?.name ?? stockId;
 }
 
-function clampPrice(value: number) {
-  return Math.max(1, Math.round(value * 100) / 100);
-}
-
-function pickEvent(day: number) {
-  return events[(day - 1) % events.length];
-}
-
-function applyDailyMove(stocks: Stock[], event: EventCard) {
-  return stocks.map((stock, index) => {
-    const eventImpact = event.impact[stock.id] ?? 0;
-    const agentNudge = index % 2 === 0 ? 0.026 : -0.018;
-    const nextPrice = clampPrice(stock.price * (1 + eventImpact * 1.35 + agentNudge));
-    return { ...stock, previousPrice: stock.price, price: nextPrice };
-  });
-}
-
-function getRating(asset: number) {
-  if (asset >= 200000) return "\u4f20\u5947\u4ea4\u6613\u5458";
-  if (asset >= 150000) return "\u660e\u661f\u4ea4\u6613\u5458";
-  if (asset >= 120000) return "\u4f18\u79c0\u4ea4\u6613\u5458";
-  if (asset >= START_CASH) return "\u7a33\u5065\u4ea4\u6613\u5458";
-  return "\u4e8f\u635f\u4ea4\u6613\u5458";
-}
-
-function getAssetRows(stocks: Stock[], positions: Partial<Record<StockId, Position>>, cash: number) {
-  const rows: AssetRow[] = [{ label: t.cash, value: cash }];
-  for (const stock of stocks) {
-    const position = positions[stock.id];
-    if (!position || position.quantity <= 0) continue;
-    rows.push({
-      label: stock.name,
-      quantity: position.quantity,
-      price: stock.price,
-      value: position.quantity * stock.price,
-    });
+function pseudoRandom(seed: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
   }
-  return rows;
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 2246822507);
+  hash ^= hash >>> 13;
+  hash = Math.imul(hash, 3266489909);
+  hash ^= hash >>> 16;
+  return (hash >>> 0) / 4294967296;
+}
+
+function pickNews(excludeTitle?: string) {
+  const pool = newsEvents.filter((event) => event.title !== excludeTitle);
+  const source = pool.length > 0 ? pool : newsEvents;
+  return source[Math.floor(Math.random() * source.length)];
+}
+
+function pickCandidateCards(day: number) {
+  return Array.from({ length: 3 }, (_, index) => cardDeck[(day + index - 1) % cardDeck.length]);
+}
+
+function getSecondaryNewsStock(news: NewsEvent) {
+  const candidates = initialStocks.filter((stock) => stock.id !== news.target);
+  return candidates[Math.floor(pseudoRandom(`${news.title}-secondary-stock`) * candidates.length)].id;
+}
+
+function getNewsImpact(stockId: StockId, news: NewsEvent): NewsImpact {
+  if (!news.truth) return "neutral";
+  if (stockId === news.target) return news.effect === "positive" ? "major_positive" : "major_negative";
+  if (stockId === getSecondaryNewsStock(news)) return news.effect === "positive" ? "minor_positive" : "minor_negative";
+  return "neutral";
+}
+
+function getHoldingValue(stocks: Stock[], positions: Partial<Record<StockId, Position>>) {
+  return stocks.reduce((sum, stock) => sum + (positions[stock.id]?.quantity ?? 0) * stock.price, 0);
 }
 
 function getAssetTotal(stocks: Stock[], positions: Partial<Record<StockId, Position>>, cash: number) {
-  return getAssetRows(stocks, positions, cash).reduce((sum, row) => sum + row.value, 0);
+  return cash + getHoldingValue(stocks, positions);
 }
 
-function getStockStats(stock: Stock, day: number) {
-  const change = (stock.price - stock.previousPrice) / stock.previousPrice;
-  const open = stock.previousPrice;
-  const high = Math.max(open, stock.price) * (1 + 0.012 + day * 0.001);
-  const low = Math.min(open, stock.price) * (1 - 0.01);
-  const volume = Math.round(stock.baseVolume * (1 + Math.abs(change) * 6 + day * 0.08));
-  return {
-    change,
-    open: clampPrice(open),
-    high: clampPrice(high),
-    low: clampPrice(low),
-    volume,
-  };
+function scoreRank(scores: Record<string, number>, agentId: string) {
+  return [...agents].sort((a, b) => (scores[b.id] ?? 0) - (scores[a.id] ?? 0)).findIndex((agent) => agent.id === agentId) + 1;
 }
 
-function getKline(stock: Stock, day: number) {
-  const seed = stock.id.length + day;
-  return Array.from({ length: 18 }, (_, index) => {
-    const progress = index / 17;
-    const base = stock.previousPrice + (stock.price - stock.previousPrice) * progress;
-    const wave = Math.sin((index + seed) * 1.35) * stock.price * 0.012;
-    const open = clampPrice(base + wave);
-    const close = clampPrice(base - wave * 0.55 + (index % 3 - 1) * 0.04);
-    const high = clampPrice(Math.max(open, close) + stock.price * (0.012 + (index % 4) * 0.002));
-    const low = clampPrice(Math.min(open, close) - stock.price * (0.01 + (index % 5) * 0.0015));
-    return { open, close, high, low };
+function generateAgentStates(day: number, news: NewsEvent, scores: Record<string, number>, lastReturns: Record<string, number>): AgentState[] {
+  const modes: SpeechMode[] = ["bluff", "truth", "half_truth", "vague", "bluff", "half_truth"];
+  const strengths: Strength[] = ["low", "medium", "high"];
+
+  return agents.map((agent, index) => {
+    const targetStock = agent.id === "news" ? news.target : agent.favorite;
+    const followsNews = targetStock === news.target;
+    const direction: Direction =
+      agent.id === "conservative"
+        ? "hold"
+        : agent.id === "contrarian"
+          ? news.effect === "positive" ? "sell" : "buy"
+          : followsNews
+            ? news.effect === "positive" ? "buy" : "sell"
+            : "buy";
+    const speechMode = modes[(day + index) % modes.length];
+    return {
+      agentId: agent.id,
+      publicMessage: buildPublicLine(agent, targetStock, direction, speechMode),
+      targetStock,
+      direction,
+      strength: strengths[(day + index) % strengths.length],
+      speechMode,
+      yesterdayReturn: lastReturns[agent.id] ?? 0,
+      rank: scoreRank(scores, agent.id),
+    };
   });
 }
 
-function getMarketStats(stocks: Stock[], day: number) {
-  const changes = stocks.map((stock) => getStockStats(stock, day).change);
-  const rise = changes.filter((change) => change > 0).length;
-  const fall = changes.filter((change) => change < 0).length;
-  const limitUp = changes.filter((change) => change >= 0.07).length;
-  const limitDown = changes.filter((change) => change <= -0.07).length;
-  const average = changes.reduce((sum, change) => sum + change, 0) / changes.length;
-  const rating = Math.max(1, Math.min(9.5, 5 + average * 18 + (rise - fall) * 0.28));
-  const labels = ["\u8dcc\u505c", "-8%", "-6%", "-4%", "-2%", "0", "2%", "4%", "6%", "8%", "\u6da8\u505c"];
-  const distribution = labels.map((label, index) => {
-    const center = index - 5;
-    const value = Math.round(80 + Math.abs(Math.sin(day + index) * 420) + Math.max(0, center) * 36 + rise * 28);
-    return { label, value, positive: index >= 6 };
-  });
-  return { rise, fall, limitUp, limitDown, average, rating, distribution };
+function buildPublicLine(agent: Agent, targetStock: StockId, direction: Direction, mode: SpeechMode) {
+  if (mode === "truth") return `${agent.fallbackLine} 我正在留意 ${stockName(targetStock)}。`;
+  if (mode === "vague") return "盘面还没给出清楚答案，我会先等一个更确定的信号。";
+  if (mode === "half_truth") return `${stockName(targetStock)} 有动静，但我不会说自己会不会跟。`;
+  const fakeDirection = direction === "buy" ? "不想追高" : "可能会找机会接一点";
+  return `${stockName(targetStock)} 这条线我${fakeDirection}，别太相信表面的热度。`;
 }
 
-function resolvePrediction(prediction: Prediction, beforeStocks: Stock[], afterStocks: Stock[], day: number) {
-  if (!prediction) return { cashDelta: 0, log: "" };
-  const before = beforeStocks.find((stock) => stock.id === prediction.stockId);
-  const after = afterStocks.find((stock) => stock.id === prediction.stockId);
-  if (!before || !after) return { cashDelta: 0, log: "" };
-  const movedUp = after.price >= before.price;
-  const hit = prediction.direction === "up" ? movedUp : !movedUp;
-  const cashDelta = hit ? PREDICTION_REWARD : -PREDICTION_PENALTY;
-  const label = hit ? t.rewardHit : t.rewardMiss;
-  const amount = hit ? `+${formatMoney(PREDICTION_REWARD)}` : `-${formatMoney(PREDICTION_PENALTY)}`;
-  return { cashDelta, log: `D${day} ${label}: ${after.name} ${amount}` };
+function cardAccuracy(mode: SpeechMode, comboCount: number, cardId: CardId) {
+  if (comboCount >= 1 && cardId !== "followup") return 1;
+  if (cardId === "news") return 0.88;
+  if (cardId === "followup") return 0.72;
+  if (mode === "truth") return 0.95;
+  if (mode === "vague") return 0.9;
+  if (mode === "half_truth") return 0.84;
+  return 0.76;
+}
+
+function misleadingDirection(direction: Direction): Direction {
+  if (direction === "buy") return "sell";
+  if (direction === "sell") return "buy";
+  return "buy";
+}
+
+function misleadingStrength(strength: Strength): Strength {
+  if (strength === "high") return "low";
+  if (strength === "low") return "high";
+  return "medium";
+}
+
+function buildCardResult(card: InfoCard, agent: Agent, state: AgentState, news: NewsEvent, truthful: boolean) {
+  const target = truthful ? state.targetStock : agent.favorite === state.targetStock ? news.target : agent.favorite;
+  const direction = truthful ? state.direction : misleadingDirection(state.direction);
+  const strength = truthful ? state.strength : misleadingStrength(state.strength);
+  const mode = truthful ? state.speechMode : "truth";
+
+  if (card.id === "position") return `${agent.name} 的真实倾向：${directionText[direction]} ${stockName(target)}。`;
+  if (card.id === "tone") return `${agent.name} 当前发言模式：${speechModeText[mode]}。`;
+  if (card.id === "flow") return `${agent.name} 今日行动力度：${strengthText[strength]}。`;
+  if (card.id === "followup") {
+    return truthful
+      ? `${agent.name}：我不会把话说满，但真正的资金方向在 ${stockName(state.targetStock)}。`
+      : `${agent.name}：这盘面太乱，我现在说什么都可能被误解。`;
+  }
+  return "";
+}
+
+function resolveStockMoves(day: number, stocks: Stock[], news: NewsEvent, agentStates: AgentState[]): StockMove[] {
+  return stocks.map((stock) => {
+    const agentModifiers = agentStates
+      .filter((state) => state.targetStock === stock.id)
+      .map((state) => {
+        const value = state.direction === "hold" ? 0 : state.strength === "high" ? 2 : 1;
+        return {
+          agentId: state.agentId,
+          direction: state.direction,
+          strength: state.strength,
+          value: state.direction === "sell" ? -value : value,
+        };
+      });
+    const newsImpact = getNewsImpact(stock.id, news);
+    const successProbability = newsImpactProbability[newsImpact];
+    const finalDice = Math.max(1, Math.min(6, 3 + agentModifiers.reduce((sum, item) => sum + item.value, 0)));
+    const rolls = Array.from({ length: finalDice }, (_, index) => pseudoRandom(`${day}-${stock.id}-${index}`) < successProbability ? 1 : 0);
+    const successes = rolls.reduce((sum, roll) => sum + roll, 0);
+    const failures = finalDice - successes;
+    const change = (successes - failures) * 0.04;
+    return { stockId: stock.id, baseDice: 3, newsImpact, successProbability, agentModifiers, finalDice, rolls, successes, change };
+  });
+}
+
+function resolveAiReturns(agentStates: AgentState[], moves: StockMove[]) {
+  return agentStates.reduce<Record<string, number>>((result, state) => {
+    const move = moves.find((item) => item.stockId === state.targetStock);
+    const strength = state.strength === "high" ? 1.2 : state.strength === "medium" ? 1 : 0.7;
+    const direction = state.direction === "buy" ? 1 : state.direction === "sell" ? -1 : 0.15;
+    result[state.agentId] = (move?.change ?? 0) * strength * direction;
+    return result;
+  }, {});
+}
+
+function getRating(asset: number, beatenAgents: number) {
+  if (asset < START_CASH) return "还没摸清牌桌";
+  if (beatenAgents >= 6) return "股票大亨";
+  if (beatenAgents >= 4) return "市场猎手";
+  if (beatenAgents >= 2) return "合格操盘手";
+  return "稳健交易员";
 }
 
 export function App() {
   const [screen, setScreen] = useState<Screen>("start");
   const [playerName, setPlayerName] = useState("");
-  const [startedName, setStartedName] = useState("");
+  const [startedName, setStartedName] = useState("新手交易员");
   const [day, setDay] = useState(1);
+  const [phase, setPhase] = useState<GamePhase>("speech");
   const [cash, setCash] = useState(START_CASH);
   const [stocks, setStocks] = useState<Stock[]>(initialStocks);
   const [positions, setPositions] = useState<Partial<Record<StockId, Position>>>({});
   const [selectedStockId, setSelectedStockId] = useState<StockId>("tech");
-  const [quantity, setQuantity] = useState(100);
-  const [currentEvent, setCurrentEvent] = useState<EventCard>(events[0]);
-  const [agentMessage, setAgentMessage] = useState(agents[0].line);
-  const [askedAgentId, setAskedAgentId] = useState("");
-  const [daySummary, setDaySummary] = useState<DaySummary | null>(null);
-  const [prediction, setPrediction] = useState<Prediction>(null);
-  const [secondsLeft, setSecondsLeft] = useState(DAY_SECONDS);
-  const [isLive, setIsLive] = useState(true);
-  const [marketShock, setMarketShock] = useState(t.calm);
-  const [isAgentLoading, setIsAgentLoading] = useState(false);
+  const [actionPoints, setActionPoints] = useState(ACTION_POINTS_PER_DAY);
+  const [news, setNews] = useState<NewsEvent>(() => pickNews());
+  const [candidateCards, setCandidateCards] = useState<InfoCard[]>([]);
+  const [handCards, setHandCards] = useState<InfoCard[]>([]);
+  const [usedCardIds, setUsedCardIds] = useState<CardId[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<CardId | null>(null);
+  const [speakingAgentId, setSpeakingAgentId] = useState(agents[0].id);
+  const [revealedInfo, setRevealedInfo] = useState<Record<string, string>>({});
+  const [investigations, setInvestigations] = useState<Investigation[]>([]);
+  const [dayActions, setDayActions] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
+  const [aiScores, setAiScores] = useState<Record<string, number>>({});
+  const [aiLastReturns, setAiLastReturns] = useState<Record<string, number>>({});
+  const [agentStates, setAgentStates] = useState<AgentState[]>(() => {
+    const firstNews = pickNews();
+    return generateAgentStates(1, firstNews, {}, {});
+  });
+  const [review, setReview] = useState<ReviewSummary | null>(null);
 
   const selectedStock = stocks.find((stock) => stock.id === selectedStockId) ?? stocks[0];
-  const selectedStats = getStockStats(selectedStock, day);
-  const selectedKline = getKline(selectedStock, day);
-  const marketStats = getMarketStats(stocks, day);
-
-  const totalAsset = useMemo(() => {
-    return getAssetTotal(stocks, positions, cash);
-  }, [cash, positions, stocks]);
-
+  const selectedPosition = positions[selectedStockId];
+  const totalAsset = useMemo(() => getAssetTotal(stocks, positions, cash), [cash, positions, stocks]);
+  const holdingValue = useMemo(() => getHoldingValue(stocks, positions), [positions, stocks]);
   const returnRate = (totalAsset - START_CASH) / START_CASH;
+  const beatenAgents = agents.filter((agent) => returnRate > (aiScores[agent.id] ?? 0)).length;
 
   useEffect(() => {
-    if (screen !== "game" || !isLive) return;
-    const id = window.setInterval(() => {
-      setSecondsLeft((value) => Math.max(0, value - 1));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [isLive, screen]);
+    if (screen !== "game" || phase !== "speech") return;
+    const timer = window.setInterval(() => {
+      setSpeakingAgentId((current) => {
+        const index = agents.findIndex((agent) => agent.id === current);
+        return agents[(index + 1) % agents.length].id;
+      });
+    }, 2200);
+    return () => window.clearInterval(timer);
+  }, [phase, screen]);
 
   useEffect(() => {
-    if (screen === "game" && secondsLeft === 0) {
-      nextDay();
-    }
-  }, [screen, secondsLeft]);
-
-  useEffect(() => {
-    if (screen !== "game" || !isLive) return;
-    const id = window.setInterval(() => {
-      runRealtimeTick();
-    }, TICK_SECONDS * 1000);
-    return () => window.clearInterval(id);
-  }, [currentEvent, day, isLive, screen, selectedStockId, stocks]);
+    if (screen !== "game" || phase !== "speech") return;
+    const timer = window.setTimeout(() => {
+      enterCardSelection();
+    }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [day, phase, screen]);
 
   function addLog(message: string) {
     setLogs((current) => [`D${day} ${message}`, ...current].slice(0, 8));
   }
 
-  function resetGame(name = startedName || copyName()) {
+  function startGame(name = playerName.trim() || "新手交易员") {
+    const firstNews = pickNews();
     setStartedName(name);
     setDay(1);
+    setPhase("speech");
     setCash(START_CASH);
     setStocks(initialStocks);
     setPositions({});
     setSelectedStockId("tech");
-    setQuantity(100);
-    setCurrentEvent(events[0]);
-    setAgentMessage(agents[0].line);
-    setAskedAgentId("");
-    setDaySummary(null);
-    setPrediction(null);
-    setSecondsLeft(DAY_SECONDS);
-    setIsLive(true);
-    setMarketShock(t.calm);
-    setIsAgentLoading(false);
-    setLogs(["D1 \u6e38\u620f\u5f00\u59cb\uff0c\u521d\u59cb\u6d4b\u8bd5\u91d1 100,000\u3002"]);
+    setActionPoints(ACTION_POINTS_PER_DAY);
+    setNews(firstNews);
+    setCandidateCards([]);
+    setHandCards([]);
+    setUsedCardIds([]);
+    setSelectedCardId(null);
+    setSpeakingAgentId(agents[0].id);
+    setRevealedInfo({});
+    setInvestigations([]);
+    setDayActions([]);
+    setAiScores({});
+    setAiLastReturns({});
+    setAgentStates(generateAgentStates(1, firstNews, {}, {}));
+    setReview(null);
+    setLogs(["D1 开盘：阅读新闻，观察 AI 发言。"]);
     setScreen("game");
-  }
-
-  function copyName() {
-    return playerName.trim() || t.defaultName;
   }
 
   function handleStart(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    resetGame(copyName());
+    startGame();
   }
 
-  function buyStock() {
-    const qty = Math.max(1, quantity);
-    const cost = selectedStock.price * qty;
-    if (cost > cash) {
-      addLog("\u73b0\u91d1\u4e0d\u8db3\uff0c\u4e70\u5165\u5931\u8d25\u3002");
+  function enterCardSelection() {
+    if (handCards.length >= MAX_HAND_CARDS) {
+      setCandidateCards([]);
+      setPhase("action");
+      addLog("上一日手牌已保留，直接进入行动阶段。");
       return;
     }
-    const current = positions[selectedStock.id] ?? { quantity: 0, avgCost: 0 };
-    const newQuantity = current.quantity + qty;
-    const avgCost = (current.avgCost * current.quantity + cost) / newQuantity;
-    setCash((value) => value - cost);
-    setPositions((currentPositions) => ({
-      ...currentPositions,
-      [selectedStock.id]: { quantity: newQuantity, avgCost },
-    }));
-    addLog(`\u4e70\u5165 ${selectedStock.name} ${qty} \u80a1\u3002`);
+    setPhase("select-cards");
+    setCandidateCards(pickCandidateCards(day));
+    addLog(`进入选牌：从候选牌中补充 ${MAX_HAND_CARDS - handCards.length} 张。`);
   }
 
-  function sellStock() {
-    const qty = Math.max(1, quantity);
-    const current = positions[selectedStock.id];
-    if (!current || current.quantity < qty) {
-      addLog("\u6301\u4ed3\u4e0d\u8db3\uff0c\u5356\u51fa\u5931\u8d25\u3002");
+  function chooseCandidateCard(card: InfoCard) {
+    if (phase !== "select-cards" || handCards.length >= MAX_HAND_CARDS || handCards.some((item) => item.id === card.id)) return;
+    const nextHand = [...handCards, card];
+    setHandCards(nextHand);
+    if (nextHand.length >= MAX_HAND_CARDS) {
+      setCandidateCards([]);
+      setPhase("action");
+      addLog("手牌已确认，进入行动阶段。");
+    }
+  }
+
+  function selectHandCard(card: InfoCard) {
+    if (phase !== "action" || usedCardIds.includes(card.id) || actionPoints < card.cost) return;
+    if (card.id === "news") {
+      useNewsCard(card);
       return;
     }
-    const nextQuantity = current.quantity - qty;
-    setCash((value) => value + selectedStock.price * qty);
-    setPositions((currentPositions) => {
-      const next = { ...currentPositions };
-      if (nextQuantity <= 0) {
-        delete next[selectedStock.id];
-      } else {
-        next[selectedStock.id] = { ...current, quantity: nextQuantity };
-      }
-      return next;
-    });
-    addLog(`\u5356\u51fa ${selectedStock.name} ${qty} \u80a1\u3002`);
+    setSelectedCardId(selectedCardId === card.id ? null : card.id);
   }
 
-  function runRealtimeTick(forceBurst = false) {
-    const burstTarget = forceBurst
-      ? selectedStockId
-      : stocks[Math.floor(Math.random() * stocks.length)]?.id ?? selectedStockId;
-    let shockMessage = "";
-    const movedStocks = stocks.map((stock, index) => {
-      const eventBias = currentEvent.impact[stock.id] ?? 0;
-      const randomMove = (Math.random() - 0.5) * (forceBurst ? 0.09 : 0.022);
-      const aiPressure = index % 2 === 0 ? 0.004 : -0.003;
-      const burstMove = stock.id === burstTarget ? (Math.random() > 0.5 ? 0.085 : -0.078) : 0;
-      const move = eventBias * 0.1 + aiPressure + randomMove + burstMove;
-      const nextPrice = clampPrice(stock.price * (1 + move));
-      if (Math.abs(move) >= 0.045) {
-        shockMessage = `${stock.name} ${move >= 0 ? "\u6025\u62c9" : "\u6025\u8dcc"} ${formatPercent(move)}`;
-      }
-      return { ...stock, previousPrice: stock.price, price: nextPrice };
-    });
-    setStocks(movedStocks);
-    if (shockMessage) {
-      setMarketShock(shockMessage);
-      setLogs((current) => [`D${day} ${shockMessage}`, ...current].slice(0, 8));
-    } else {
-      setMarketShock(t.calm);
-    }
+  function spendActionPoint(message: string) {
+    setActionPoints((value) => Math.max(0, value - 1));
+    setDayActions((current) => [message, ...current]);
+    addLog(message);
   }
 
-  function nextDay() {
-    const beforeAsset = getAssetTotal(stocks, positions, cash);
-    const movedStocks = applyDailyMove(stocks, currentEvent);
-    const predictionResult = resolvePrediction(prediction, stocks, movedStocks, day);
-    const nextCash = cash + predictionResult.cashDelta;
-    const afterAsset = getAssetTotal(movedStocks, positions, nextCash);
-    setDaySummary({
-      day,
-      beforeAsset,
-      afterAsset,
-      rows: getAssetRows(movedStocks, positions, nextCash),
-    });
-    setCash(nextCash);
-    setStocks(movedStocks);
-    setSecondsLeft(DAY_SECONDS);
-    if (day >= MAX_DAY) {
-      setIsLive(false);
-      setScreen("result");
-      return;
-    }
-    const next = day + 1;
-    const nextEvent = pickEvent(next);
-    setDay(next);
-    setCurrentEvent(nextEvent);
-    setAgentMessage(agents[next % agents.length].line);
-    setAskedAgentId("");
-    setPrediction(null);
-    setIsLive(true);
-    setMarketShock(nextEvent.title);
-    setIsAgentLoading(false);
-    setLogs((current) => [predictionResult.log, `D${next} ${nextEvent.title}`, ...current].filter(Boolean).slice(0, 8));
+  function useNewsCard(card: InfoCard) {
+    if (actionPoints <= 0 || usedCardIds.includes(card.id)) return;
+    const truthful = pseudoRandom(`${day}-news-card`) <= cardAccuracy("vague", 0, "news");
+    const result = truthful
+      ? `新闻线索：这条消息${news.truth ? "更像真实消息" : "更像市场烟雾弹"}。`
+      : "新闻线索：消息源混乱，短线资金可能误读了方向。";
+    setUsedCardIds((current) => [...current, card.id]);
+    setInvestigations((current) => [...current, { day, cardId: card.id, cardName: card.name, target: "今日新闻", shownResult: result, truthful }]);
+    setRevealedInfo((current) => ({ ...current, news: result }));
+    spendActionPoint(`使用【${card.name}】核对新闻。`);
   }
 
-  async function askAgent(agent: Agent) {
-    if (askedAgentId || isAgentLoading) return;
-    const stock = stocks.find((item) => item.id === agent.favorite);
-    const name = stock?.name ?? "";
-    setAskedAgentId(agent.id);
-    setIsAgentLoading(true);
-    setAgentMessage(`${agent.name}\uff1a${t.aiThinking}`);
+  async function useCardOnAgent(agent: Agent) {
+    if (!selectedCardId || phase !== "action" || actionPoints <= 0) return;
+    const card = handCards.find((item) => item.id === selectedCardId);
+    const state = agentStates.find((item) => item.agentId === agent.id);
+    if (!card || !state || usedCardIds.includes(card.id)) return;
+    const comboCount = investigations.filter((item) => item.day === day && item.target === agent.id).length;
+    const truthful = pseudoRandom(`${day}-${agent.id}-${card.id}-${comboCount}`) <= cardAccuracy(state.speechMode, comboCount, card.id);
+    const result = card.id === "followup"
+      ? await askAgentFollowup(agent, state, truthful)
+      : buildCardResult(card, agent, state, news, truthful);
+    setUsedCardIds((current) => [...current, card.id]);
+    setSelectedCardId(null);
+    setSpeakingAgentId(agent.id);
+    setRevealedInfo((current) => ({ ...current, [agent.id]: result }));
+    setInvestigations((current) => [...current, { day, cardId: card.id, cardName: card.name, target: agent.id, shownResult: result, truthful }]);
+    spendActionPoint(`使用【${card.name}】调查 ${agent.name}。`);
+  }
+
+  async function askAgentFollowup(agent: Agent, state: AgentState, truthful: boolean) {
+    const fallback = buildCardResult(cardDeck.find((card) => card.id === "followup")!, agent, state, news, truthful);
+    if (!truthful) return fallback;
     try {
       const response = await fetch(`${API_BASE_URL}/game/ask-agent`, {
         method: "POST",
@@ -544,46 +546,136 @@ export function App() {
           session_id: "demo-session-001",
           agent_id: agent.id,
           agent_name: agent.name,
-          role: agent.role,
+          role: "AI 交易员",
           favorite_stock: agent.favorite,
           day,
-          event_title: currentEvent.title,
-          event_description: currentEvent.description,
-          market_shock: marketShock,
-          stocks: stocks.map((item) => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            change: getStockStats(item, day).change,
+          event_title: news.title,
+          event_description: news.description,
+          market_shock: "",
+          stocks: stocks.map((stock) => ({
+            id: stock.id,
+            name: stock.name,
+            price: stock.price,
+            change: (stock.price - stock.previousPrice) / stock.previousPrice,
           })),
         }),
       });
-      if (!response.ok) throw new Error("agent request failed");
-      const data = (await response.json()) as { message?: string; source?: string };
-      setAgentMessage(data.message || `${agent.name}\uff1a${agent.line} \u6211\u6b63\u5728\u7559\u610f ${name}\u3002`);
-      addLog(`\u6253\u63a2 ${agent.name}\uff1a${data.source === "deepseek" ? "DeepSeek \u5df2\u56de\u590d" : "\u672c\u5730\u5907\u7528\u56de\u590d"}\u3002`);
+      if (!response.ok) return fallback;
+      const data = (await response.json()) as { message?: string };
+      return data.message || fallback;
     } catch {
-      setAgentMessage(`${agent.name}\uff1a${agent.line} \u6211\u6b63\u5728\u7559\u610f ${name}\u3002`);
-      addLog(`\u6253\u63a2 ${agent.name}\uff1aDeepSeek \u6682\u672a\u8fde\u63a5\uff0c\u5df2\u4f7f\u7528\u672c\u5730\u53f0\u8bcd\u3002`);
-    } finally {
-      setIsAgentLoading(false);
+      return fallback;
     }
+  }
+
+  function buyWithCashRatio(ratio: number, label: string) {
+    if (phase !== "action" || actionPoints <= 0) return;
+    const budget = cash * ratio;
+    const quantity = Math.floor(budget / selectedStock.price);
+    if (quantity <= 0) return;
+    const cost = quantity * selectedStock.price;
+    setCash((value) => value - cost);
+    setPositions((current) => {
+      const existing = current[selectedStock.id];
+      const nextQuantity = (existing?.quantity ?? 0) + quantity;
+      const nextCost = (existing?.avgCost ?? 0) * (existing?.quantity ?? 0) + cost;
+      return { ...current, [selectedStock.id]: { quantity: nextQuantity, avgCost: nextCost / nextQuantity } };
+    });
+    spendActionPoint(`${label} ${selectedStock.name} ${quantity} 股。`);
+  }
+
+  function sellWithPositionRatio(ratio: number, label: string) {
+    if (phase !== "action" || actionPoints <= 0 || !selectedPosition) return;
+    const quantity = Math.min(selectedPosition.quantity, Math.max(1, Math.floor(selectedPosition.quantity * ratio)));
+    setCash((value) => value + quantity * selectedStock.price);
+    setPositions((current) => {
+      const next = { ...current };
+      const remaining = selectedPosition.quantity - quantity;
+      if (remaining <= 0) delete next[selectedStock.id];
+      else next[selectedStock.id] = { ...selectedPosition, quantity: remaining };
+      return next;
+    });
+    spendActionPoint(`${label} ${selectedStock.name} ${quantity} 股。`);
+  }
+
+  function closeDay() {
+    if (phase === "review") {
+      if (day >= MAX_DAY) {
+        setScreen("result");
+        return;
+      }
+      const nextDay = day + 1;
+      const nextNews = pickNews(news.title);
+      const carriedHandCards = handCards.filter((card) => !usedCardIds.includes(card.id));
+      setDay(nextDay);
+      setPhase("speech");
+      setNews(nextNews);
+      setCandidateCards([]);
+      setHandCards(carriedHandCards);
+      setUsedCardIds([]);
+      setSelectedCardId(null);
+      setRevealedInfo({});
+      setInvestigations([]);
+      setDayActions([]);
+      setActionPoints(ACTION_POINTS_PER_DAY);
+      setAgentStates(generateAgentStates(nextDay, nextNews, aiScores, aiLastReturns));
+      setReview(null);
+      setSpeakingAgentId(agents[(nextDay - 1) % agents.length].id);
+      addLog(carriedHandCards.length > 0 ? `进入第 ${nextDay} 个交易日，保留 ${carriedHandCards.length} 张未使用手牌。` : `进入第 ${nextDay} 个交易日。`);
+      return;
+    }
+
+    const beforeAsset = totalAsset;
+    const moves = resolveStockMoves(day, stocks, news, agentStates);
+    const movedStocks = stocks.map((stock) => {
+      const move = moves.find((item) => item.stockId === stock.id);
+      const change = move?.change ?? 0;
+      const nextPrice = Math.max(1, Math.round(stock.price * (1 + change) * 100) / 100);
+      return { ...stock, previousPrice: stock.price, price: nextPrice, history: [...stock.history.slice(-9), nextPrice] };
+    });
+    const aiReturns = resolveAiReturns(agentStates, moves);
+    const nextScores = agents.reduce<Record<string, number>>((result, agent) => {
+      result[agent.id] = (aiScores[agent.id] ?? 0) + (aiReturns[agent.id] ?? 0);
+      return result;
+    }, {});
+    const afterAsset = getAssetTotal(movedStocks, positions, cash);
+    setStocks(movedStocks);
+    setAiScores(nextScores);
+    setAiLastReturns(aiReturns);
+    setReview({
+      day,
+      beforeAsset,
+      afterAsset,
+      newsResult: news.truth ? `真实${news.effect === "positive" ? "利好" : "利空"}` : "假消息",
+      stockMoves: moves,
+      investigations,
+      actions: dayActions,
+    });
+    setPhase("review");
+    setCandidateCards([]);
+    setSelectedCardId(null);
+    setActionPoints(0);
+    setSpeakingAgentId("review");
+    addLog(`收盘：总资产 ${formatMoney(beforeAsset)} -> ${formatMoney(afterAsset)}。`);
   }
 
   if (screen === "result") {
     return (
-      <main className="game-page">
-        <section className="result-panel">
-          <p className="eyebrow">{t.result}</p>
-          <h1>{getRating(totalAsset)}</h1>
+      <main className="result-page">
+        <section className="result-panel tavern-panel">
+          <p className="eyebrow">七日结算</p>
+          <h1>{getRating(totalAsset, beatenAgents)}</h1>
           <div className="result-grid">
-            <Metric label={t.asset} value={formatMoney(totalAsset)} />
-            <Metric label={t.returnRate} value={formatPercent(returnRate)} tone={returnRate >= 0 ? "up" : "down"} />
-            <Metric label={t.cash} value={formatMoney(cash)} />
+            <Metric label="最终现金" value={`¥${formatMoney(cash)}`} />
+            <Metric label="持仓市值" value={`¥${formatMoney(holdingValue)}`} />
+            <Metric label="最终总资产" value={`¥${formatMoney(totalAsset)}`} />
+            <Metric label="收益率" value={formatPercent(returnRate)} tone={returnRate >= 0 ? "up" : "down"} />
+            <Metric label="跑赢 AI" value={`${beatenAgents} / 6`} />
+            <Metric label="玩家排名" value={`${7 - beatenAgents} / 7`} />
           </div>
-          <AssetSummary summary={daySummary} />
-          <button className="primary-button" type="button" onClick={() => resetGame(copyName())}>
-            {t.restart}
+          <AIRanking aiScores={aiScores} />
+          <button className="primary-button" type="button" onClick={() => startGame(startedName)}>
+            再开一局
           </button>
         </section>
       </main>
@@ -594,263 +686,135 @@ export function App() {
     return (
       <main className="game-page">
         <section className="game-layout">
-          <header className="game-top">
-            <div>
-              <p className="eyebrow">{t.eyebrow}</p>
-              <h1>{startedName}</h1>
-              <p className="subtle">
-                {"\u7b2c"} {day} / {MAX_DAY} {"\u4e2a\u4ea4\u6613\u65e5"}
-              </p>
-            </div>
-            <button className="primary-button" type="button" onClick={nextDay}>
-              {t.nextDay}
-            </button>
-          </header>
+          <TopBar
+            day={day}
+            phase={phase}
+            cash={cash}
+            actionPoints={actionPoints}
+            rank={7 - beatenAgents}
+            playerName={startedName}
+          />
 
-          <section className="live-strip">
-            <div>
-              <span>{t.liveTrading}</span>
-              <strong>{marketShock}</strong>
-            </div>
-            <div className="live-actions">
-              <span className="timer-pill">
-                {t.timer} {formatClock(secondsLeft)}
-              </span>
-              <button className="ghost-button" type="button" onClick={() => setIsLive((value) => !value)}>
-                {isLive ? t.pause : t.resume}
-              </button>
-              <button className="shock-button" type="button" onClick={() => runRealtimeTick(true)}>
-                {t.volatilityStrike}
-              </button>
-            </div>
-          </section>
+          <section className="tabletop">
+            <AgentStage
+              agentStates={agentStates}
+              phase={phase}
+              revealedInfo={revealedInfo}
+              selectedCardId={selectedCardId}
+              speakingAgentId={speakingAgentId}
+              onAgentClick={useCardOnAgent}
+            />
 
-          <MarketOverview stats={marketStats} stocks={stocks} day={day} />
+            <section className="center-board">
+              <NewsCard news={news} revealedInfo={revealedInfo.news} />
+              <StockTradeTable
+                stocks={stocks}
+                selectedStockId={selectedStockId}
+                positions={positions}
+                phase={phase}
+                actionPoints={actionPoints}
+                onSelect={setSelectedStockId}
+                onBuy={buyWithCashRatio}
+                onSell={sellWithPositionRatio}
+              />
+              <PortfolioPanel cash={cash} totalAsset={totalAsset} holdingValue={holdingValue} returnRate={returnRate} />
+              <ReviewPanel review={null} news={news} agentStates={agentStates} />
+              {phase !== "speech" && phase !== "review" && (
+                <button className="close-day-button" disabled={phase === "select-cards"} type="button" onClick={closeDay}>
+                  收盘结算
+                </button>
+              )}
+            </section>
 
-          <section className="metrics">
-            <Metric label={t.cash} value={formatMoney(cash)} />
-            <Metric label={t.asset} value={formatMoney(totalAsset)} />
-            <Metric label={t.returnRate} value={formatPercent(returnRate)} tone={returnRate >= 0 ? "up" : "down"} />
-          </section>
-
-          <section className="event-card">
-            <span>{t.event}</span>
-            <h2>{currentEvent.title}</h2>
-            <p>{currentEvent.description}</p>
-          </section>
-
-          <section className="challenge-card">
-            <div>
-              <span>{t.challenge}</span>
-              <h2>{selectedStock.name}</h2>
-              <p>{prediction ? `${t.predicted}: ${prediction.direction === "up" ? t.predictUp : t.predictDown}` : t.challengeDesc}</p>
-            </div>
-            <div className="challenge-actions">
-              <button
-                className="buy-button"
-                disabled={Boolean(prediction)}
-                type="button"
-                onClick={() => setPrediction({ stockId: selectedStock.id, direction: "up" })}
-              >
-                {t.predictUp}
-              </button>
-              <button
-                className="sell-button"
-                disabled={Boolean(prediction)}
-                type="button"
-                onClick={() => setPrediction({ stockId: selectedStock.id, direction: "down" })}
-              >
-                {t.predictDown}
-              </button>
-            </div>
-          </section>
-
-          <AssetSummary summary={daySummary} />
-
-          <section className="main-grid">
-            <div className="panel agent-panel">
-              <div className="panel-head">
-                <h2>{t.stocks}</h2>
-                <span>{selectedStock.name}</span>
-              </div>
-              <div className="quote-board">
-                <div className="quote-main">
-                  <span>{t.currentPrice}</span>
-                  <strong>{selectedStock.price.toFixed(2)}</strong>
-                  <b className={selectedStats.change >= 0 ? "up" : "down"}>{formatPercent(selectedStats.change)}</b>
-                </div>
-                <div className="quote-stats">
-                  <QuoteItem label={t.open} value={selectedStats.open.toFixed(2)} />
-                  <QuoteItem label={t.high} value={selectedStats.high.toFixed(2)} />
-                  <QuoteItem label={t.low} value={selectedStats.low.toFixed(2)} />
-                  <QuoteItem label={t.volume} value={formatMoney(selectedStats.volume)} />
-                </div>
-              </div>
-              <KlineChart candles={selectedKline} />
-              <div className="stock-grid">
-                {stocks.map((stock) => {
-                  const stats = getStockStats(stock, day);
-                  return (
-                    <button
-                      className={`stock-card ${stock.id === selectedStockId ? "active" : ""}`}
-                      key={stock.id}
-                      type="button"
-                      onClick={() => setSelectedStockId(stock.id)}
-                    >
-                      <strong>{stock.name}</strong>
-                      <b>{stock.price.toFixed(2)}</b>
-                      <span className={stats.change >= 0 ? "up" : "down"}>{formatPercent(stats.change)}</span>
-                      <small>
-                        {t.open} {stats.open.toFixed(2)} / {t.high} {stats.high.toFixed(2)}
-                      </small>
-                      <small>
-                        {t.low} {stats.low.toFixed(2)} / {t.volume} {formatMoney(stats.volume)}
-                      </small>
-                      <small>{"\u98ce\u9669"} {stock.risk}</small>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <aside className="side-panel">
-              <div className="panel">
-                <div className="panel-head">
-                  <h2>{t.trade}</h2>
-                </div>
-                <label className="field">
-                  <span>{t.quantity}</span>
-                  <input
-                    min={1}
-                    step={10}
-                    type="number"
-                    value={quantity}
-                    onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
-                  />
-                </label>
-                <div className="trade-actions">
-                  <button className="buy-button" type="button" onClick={buyStock}>
-                    {t.buy}
-                  </button>
-                  <button className="sell-button" type="button" onClick={sellStock}>
-                    {t.sell}
-                  </button>
-                </div>
-              </div>
-
-              <div className="panel">
-                <div className="panel-head">
-                  <h2>{t.positions}</h2>
-                </div>
-                <div className="list">
-                  {Object.entries(positions).length === 0 ? (
-                    <p className="subtle">{t.noPosition}</p>
-                  ) : (
-                    Object.entries(positions).map(([stockId, position]) => {
-                      const stock = stocks.find((item) => item.id === stockId);
-                      if (!stock || !position) return null;
-                      return (
-                        <div className="row" key={stockId}>
-                          <span>
-                            {stock.name} x {position.quantity}
-                          </span>
-                          <strong>{formatMoney(stock.price * position.quantity)}</strong>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
+            <aside className="right-rail">
+              <CandidateCardArea cards={candidateCards} handCards={handCards} phase={phase} onChoose={chooseCandidateCard} />
+              <AIRanking aiScores={aiScores} />
             </aside>
           </section>
-
-          <section className="main-grid lower-grid">
-            <div className="panel">
-              <div className="panel-head">
-                <h2>{t.agents}</h2>
-                <span>{askedAgentId ? t.asked : t.askLimit}</span>
-              </div>
-              <p className="agent-message">{agentMessage}</p>
-              <div className="agent-grid">
-                {agents.map((agent) => {
-                  const isLocked = isAgentLoading || (Boolean(askedAgentId) && askedAgentId !== agent.id);
-                  const isAsked = askedAgentId === agent.id;
-                  return (
-                  <button
-                    className={`agent-card ${isAsked ? "active" : ""}`}
-                    disabled={isLocked || (isAsked && !isAgentLoading)}
-                    key={agent.id}
-                    type="button"
-                    onClick={() => askAgent(agent)}
-                  >
-                    <span className={`agent-avatar avatar-${agent.avatar}`} aria-hidden="true">
-                      <i />
-                    </span>
-                    <span className="agent-info">
-                      <strong>{agent.name}</strong>
-                      <small>{isAsked && isAgentLoading ? t.aiThinking : isAsked ? t.asked : t.ask}</small>
-                    </span>
-                  </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="panel">
-              <div className="panel-head">
-                <h2>{t.log}</h2>
-              </div>
-              <div className="list">
-                {logs.map((item) => (
-                  <div className="log-row" key={item}>
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <StockTable stocks={stocks} day={day} onSelect={setSelectedStockId} selectedStockId={selectedStockId} />
         </section>
+
+        <HandDock
+          cards={handCards}
+          selectedCardId={selectedCardId}
+          usedCardIds={usedCardIds}
+          actionPoints={actionPoints}
+          phase={phase}
+          logs={logs}
+          onSelect={selectHandCard}
+        />
+        {phase === "select-cards" && (
+          <CardSelectionModal cards={candidateCards} handCards={handCards} onChoose={chooseCandidateCard} />
+        )}
+        {phase === "review" && review && (
+          <DailySummaryModal
+            review={review}
+            news={news}
+            agentStates={agentStates}
+            onConfirm={closeDay}
+            finalDay={day >= MAX_DAY}
+          />
+        )}
       </main>
     );
   }
 
   return (
     <main className="start-page">
-      <section className="hero">
+      <section className="hero tavern-panel">
         <div className="hero-copy">
-          <p className="eyebrow">{t.eyebrow}</p>
-          <h1>{t.title}</h1>
-          <p className="summary">{t.summary}</p>
+          <p className="eyebrow">AI 代理投资游戏</p>
+          <h1>股票大亨</h1>
+          <p className="summary">7 个交易日，5 只虚拟股票，6 个会说谎的 AI 交易员。读新闻、选信息卡、调查 AI，再用有限行动点下注。</p>
           <form className="start-form" onSubmit={handleStart}>
-            <label htmlFor="playerName">{t.playerName}</label>
+            <label htmlFor="playerName">交易员名字</label>
             <div className="start-row">
-              <input
-                id="playerName"
-                name="playerName"
-                placeholder={t.placeholder}
-                value={playerName}
-                onChange={(event) => setPlayerName(event.target.value)}
-              />
-              <button type="submit">{t.start}</button>
+              <input id="playerName" placeholder="输入你的名字" value={playerName} onChange={(event) => setPlayerName(event.target.value)} />
+              <button type="submit">开始游戏</button>
             </div>
           </form>
         </div>
-
-        <div className="market-preview" aria-label={t.rules}>
-          <div className="preview-header">
-            <span>{t.rules}</span>
-            <strong>Demo</strong>
-          </div>
+        <div className="rule-board">
+          <h2>今日牌桌规则</h2>
           <ul>
-            {startRules.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
+            <li>每天先看新闻，再听 6 个 AI 的公开发言。</li>
+            <li>每日 3 张候选信息卡，只能选 2 张。</li>
+            <li>出牌和交易都消耗行动点，每天 4 点。</li>
+            <li>AI 的真实行动会改变骰子数量，收盘按骰子结算。</li>
           </ul>
         </div>
       </section>
     </main>
+  );
+}
+
+function TopBar({ day, phase, cash, actionPoints, rank, playerName }: { day: number; phase: GamePhase; cash: number; actionPoints: number; rank: number; playerName: string }) {
+  const phaseText: Record<GamePhase, string> = {
+    speech: "AI 发言",
+    "select-cards": "选牌",
+    action: "行动",
+    review: "复盘",
+  };
+  return (
+    <header className="top-bar">
+      <div className="brand">
+        <strong>股票大亨</strong>
+        <span>{playerName}</span>
+      </div>
+      <TopItem label="日期" value={`第 ${day} / ${MAX_DAY} 日`} />
+      <TopItem label="阶段" value={phaseText[phase]} />
+      <TopItem label="现金" value={`¥${formatMoney(cash)}`} tone="money" />
+      <ActionPointBar points={actionPoints} />
+      <TopItem label="排名" value={`${rank} / 7`} />
+    </header>
+  );
+}
+
+function TopItem({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className={`top-item ${tone ?? ""}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 
@@ -863,259 +827,409 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
   );
 }
 
-function MarketOverview({ stats, stocks, day }: { stats: ReturnType<typeof getMarketStats>; stocks: Stock[]; day: number }) {
-  const maxBar = Math.max(...stats.distribution.map((item) => item.value));
-  const indexCards = [
-    { name: "\u4e0a\u8bc1\u6a21\u62df", value: 4068.57, change: stats.average - 0.004 },
-    { name: "\u6df1\u8bc1\u6a21\u62df", value: 15575.13, change: stats.average - 0.011 },
-    { name: "\u521b\u4e1a\u677f", value: 4037.95, change: stats.average - 0.008 },
-    { name: "\u79d1\u521b\u677f", value: 1244.1, change: stats.average + 0.006 },
-  ];
+function ActionPointBar({ points }: { points: number }) {
   return (
-    <section className="market-overview">
-      <div className="section-title">
-        <span />
-        <h2>{t.marketTitle}</h2>
+    <div className="ap-bar">
+      <span>行动点</span>
+      <div>
+        {Array.from({ length: ACTION_POINTS_PER_DAY }, (_, index) => (
+          <i className={index < points ? "filled" : ""} key={index} />
+        ))}
       </div>
-      <div className="market-board">
-        <div className="market-left">
-          <div className="mini-stat accent-red">
-            <strong>{t.breadth}</strong>
-            <p>
-              {t.rise}: <b className="red-text">{stats.rise}</b> / {t.fall}: <b className="green-text">{stats.fall}</b>
-            </p>
+      <strong>{points}/{ACTION_POINTS_PER_DAY}</strong>
+    </div>
+  );
+}
+
+function NewsCard({ news, revealedInfo }: { news: NewsEvent; revealedInfo?: string }) {
+  return (
+    <section className="news-card paper-card">
+      <span>今日新闻事件</span>
+      <h2>{news.title}</h2>
+      <p>{news.description}</p>
+      {revealedInfo && <em>{revealedInfo}</em>}
+    </section>
+  );
+}
+
+function AgentStage({
+  agentStates,
+  phase,
+  revealedInfo,
+  selectedCardId,
+  speakingAgentId,
+  onAgentClick,
+}: {
+  agentStates: AgentState[];
+  phase: GamePhase;
+  revealedInfo: Record<string, string>;
+  selectedCardId: CardId | null;
+  speakingAgentId: string;
+  onAgentClick: (agent: Agent) => void;
+}) {
+  return (
+    <aside className="agent-stage tavern-panel">
+      <div className="stage-title">
+        <h2>AI 交易员剧场</h2>
+        <span>{selectedCardId ? "选择调查目标" : "公开发言"}</span>
+      </div>
+      {agents.map((agent) => {
+        const state = agentStates.find((item) => item.agentId === agent.id);
+        const message = revealedInfo[agent.id] || state?.publicMessage || agent.fallbackLine;
+        const active = speakingAgentId === agent.id || Boolean(selectedCardId);
+        return (
+          <button
+            className={`agent-line ${speakingAgentId === agent.id ? "speaking" : ""} ${selectedCardId ? "selectable" : ""} ${revealedInfo[agent.id] ? "investigated" : ""}`}
+            disabled={phase !== "action" || !selectedCardId}
+            key={agent.id}
+            onClick={() => onAgentClick(agent)}
+            type="button"
+          >
+            <span className={`pet-sprite avatar-${agent.avatar}`} aria-hidden="true"><i /></span>
+            <span className="agent-meta">
+              <strong>{agent.name}</strong>
+              <small>昨日 {formatPercent(state?.yesterdayReturn ?? 0)} / 排名 {state?.rank ?? "-"}</small>
+            </span>
+            <span className={`speech-bubble ${active ? "active" : ""}`}>
+              {message}
+            </span>
+          </button>
+        );
+      })}
+    </aside>
+  );
+}
+
+function StockTradeTable({
+  stocks,
+  selectedStockId,
+  positions,
+  phase,
+  actionPoints,
+  onSelect,
+  onBuy,
+  onSell,
+}: {
+  stocks: Stock[];
+  selectedStockId: StockId;
+  positions: Partial<Record<StockId, Position>>;
+  phase: GamePhase;
+  actionPoints: number;
+  onSelect: (stockId: StockId) => void;
+  onBuy: (ratio: number, label: string) => void;
+  onSell: (ratio: number, label: string) => void;
+}) {
+  const selectedPosition = positions[selectedStockId];
+  return (
+    <section className="stock-table tavern-panel">
+      <div className="panel-head">
+        <h2>股票交易区</h2>
+        <span>日内价格只是预演，收盘以骰子为准</span>
+      </div>
+      <div className="stock-header">
+        <span>代码/名称</span>
+        <span>当前价格</span>
+        <span>涨跌幅</span>
+        <span>我的持仓</span>
+        <span>K线</span>
+      </div>
+      {stocks.map((stock) => {
+        const change = (stock.price - stock.previousPrice) / stock.previousPrice;
+        return (
+          <button className={`stock-row ${stock.id === selectedStockId ? "active" : ""}`} key={stock.id} onClick={() => onSelect(stock.id)} type="button">
+            <strong><b>{stock.code}</b>{stock.name}<small>{stock.sector}</small></strong>
+            <span>¥{stock.price.toFixed(2)}</span>
+            <span className={change >= 0 ? "up" : "down"}>{formatPercent(change)}</span>
+            <span>{positions[stock.id]?.quantity ?? 0} 股</span>
+            <MiniKLine values={stock.history} />
+          </button>
+        );
+      })}
+      <div className="trade-actions">
+        <button disabled={phase !== "action" || actionPoints <= 0} onClick={() => onBuy(0.25, "小仓买入")} type="button">小仓 25%</button>
+        <button disabled={phase !== "action" || actionPoints <= 0} onClick={() => onBuy(0.5, "半仓买入")} type="button">半仓 50%</button>
+        <button disabled={phase !== "action" || actionPoints <= 0} onClick={() => onBuy(0.8, "重仓买入")} type="button">重仓 80%</button>
+        <button disabled={phase !== "action" || actionPoints <= 0 || !selectedPosition} onClick={() => onSell(0.3, "减仓")} type="button">减仓 30%</button>
+        <button disabled={phase !== "action" || actionPoints <= 0 || !selectedPosition} onClick={() => onSell(0.5, "半仓卖出")} type="button">半仓卖</button>
+        <button disabled={phase !== "action" || actionPoints <= 0 || !selectedPosition} onClick={() => onSell(1, "清仓")} type="button">清仓</button>
+      </div>
+    </section>
+  );
+}
+
+function MiniKLine({ values }: { values: number[] }) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  return (
+    <span className="mini-kline" aria-label="K线">
+      {values.map((value, index) => {
+        const height = max === min ? 45 : 20 + ((value - min) / (max - min)) * 34;
+        const up = index === 0 || value >= values[index - 1];
+        return <i className={up ? "up-stick" : "down-stick"} key={`${value}-${index}`} style={{ height }} />;
+      })}
+    </span>
+  );
+}
+
+function PortfolioPanel({ cash, totalAsset, holdingValue, returnRate }: { cash: number; totalAsset: number; holdingValue: number; returnRate: number }) {
+  return (
+    <section className="portfolio-strip">
+      <Metric label="现金" value={`¥${formatMoney(cash)}`} />
+      <Metric label="持仓市值" value={`¥${formatMoney(holdingValue)}`} />
+      <Metric label="总资产" value={`¥${formatMoney(totalAsset)}`} />
+      <Metric label="收益率" value={formatPercent(returnRate)} tone={returnRate >= 0 ? "up" : "down"} />
+    </section>
+  );
+}
+
+function CandidateCardArea({ cards, handCards, phase, onChoose }: { cards: InfoCard[]; handCards: InfoCard[]; phase: GamePhase; onChoose: (card: InfoCard) => void }) {
+  return (
+    <section className="candidate-zone tavern-panel">
+      <div className="panel-head">
+        <h2>本日候选 3 选 2</h2>
+        <span>{handCards.length}/2</span>
+      </div>
+      {phase === "select-cards" && cards.length > 0 ? (
+        <div className="empty-zone">
+          <strong>卡牌选择已弹出</strong>
+          <p>请在中央弹窗里选择 2 张手牌。</p>
+        </div>
+      ) : phase === "action" && handCards.length > 0 ? (
+        <div className="empty-zone">
+          <strong>今日手牌已确认</strong>
+          <p>候选卡消失，底部手牌可点击使用。</p>
+        </div>
+      ) : (
+        <div className="empty-zone">
+          <strong>AI 发言自动跳过</strong>
+          <p>即将进入今日卡牌选择。</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CardSelectionModal({ cards, handCards, onChoose }: { cards: InfoCard[]; handCards: InfoCard[]; onChoose: (card: InfoCard) => void }) {
+  const needCount = Math.max(0, MAX_HAND_CARDS - handCards.length);
+  return (
+    <div className="modal-backdrop">
+      <section className="modal-panel card-modal tavern-panel">
+        <div className="modal-head">
+          <span>今日开盘</span>
+          <h2>卡牌选择</h2>
+          <p>{handCards.length > 0 ? `已保留 ${handCards.length} 张未使用手牌，再从候选牌里补 ${needCount} 张。` : "从 3 张候选信息卡里选择 2 张。选满后自动进入行动阶段。"}</p>
+        </div>
+        <div className="candidate-cards">
+          {cards.map((card) => (
+            <button className={`info-card modal-card ${handCards.some((item) => item.id === card.id) ? "chosen" : ""}`} key={card.id} onClick={() => onChoose(card)} type="button">
+              <b>{card.icon}</b>
+              <span>{card.cost} AP</span>
+              <strong>{card.name}</strong>
+              <p>{card.effect}</p>
+            </button>
+          ))}
+        </div>
+        <div className="modal-foot">
+          <span>已选择 {handCards.length} / 2</span>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function HandDock({
+  cards,
+  selectedCardId,
+  usedCardIds,
+  actionPoints,
+  phase,
+  logs,
+  onSelect,
+}: {
+  cards: InfoCard[];
+  selectedCardId: CardId | null;
+  usedCardIds: CardId[];
+  actionPoints: number;
+  phase: GamePhase;
+  logs: string[];
+  onSelect: (card: InfoCard) => void;
+}) {
+  return (
+    <aside className="hand-dock">
+      <div className="dock-label">你已选择</div>
+      <div className="dock-cards">
+        {cards.length === 0 ? (
+          <div className="dock-placeholder">等待选牌</div>
+        ) : (
+          cards.map((card) => {
+            const used = usedCardIds.includes(card.id);
+            return (
+              <button
+                className={`hand-card ${selectedCardId === card.id ? "selected" : ""} ${used ? "used" : ""}`}
+                disabled={phase !== "action" || used || actionPoints < card.cost}
+                key={card.id}
+                onClick={() => onSelect(card)}
+                type="button"
+              >
+                <b>{card.icon}</b>
+                <strong>{card.name}</strong>
+                <span>{used ? "收盘后丢弃" : `${card.cost} AP`}</span>
+              </button>
+            );
+          })
+        )}
+      </div>
+      <div className="dock-log">
+        <strong>状态日志</strong>
+        {logs.slice(0, 3).map((log) => <span key={log}>{log}</span>)}
+      </div>
+    </aside>
+  );
+}
+
+function AIRanking({ aiScores }: { aiScores: Record<string, number> }) {
+  return (
+    <section className="ai-ranking tavern-panel">
+      <div className="panel-head">
+        <h2>AI 排名</h2>
+        <span>虚拟收益</span>
+      </div>
+      {[...agents].sort((a, b) => (aiScores[b.id] ?? 0) - (aiScores[a.id] ?? 0)).map((agent, index) => (
+        <div className="rank-row" key={agent.id}>
+          <strong>{index + 1}. {agent.name}</strong>
+          <span className={(aiScores[agent.id] ?? 0) >= 0 ? "up" : "down"}>{formatPercent(aiScores[agent.id] ?? 0)}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function DailySummaryModal({
+  review,
+  news,
+  agentStates,
+  onConfirm,
+  finalDay,
+}: {
+  review: ReviewSummary;
+  news: NewsEvent;
+  agentStates: AgentState[];
+  onConfirm: () => void;
+  finalDay: boolean;
+}) {
+  return (
+    <div className="modal-backdrop">
+      <section className="modal-panel summary-modal tavern-panel">
+        <button className="modal-close" type="button" onClick={onConfirm} aria-label="关闭每日总结">
+          ×
+        </button>
+        <div className="modal-head">
+          <span>D{review.day} 收盘</span>
+          <h2>每日总结</h2>
+          <p>新闻、AI 真实行动和骰子结果已揭示。确认后{finalDay ? "进入七日结算" : "进入下一日卡牌选择"}。</p>
+        </div>
+
+        <div className="summary-grid">
+          <div className="summary-card">
+            <h3>新闻真相</h3>
+            <p>{news.title}：{review.newsResult}，实际影响 {stockName(news.target)}。</p>
           </div>
-          <div className="mini-stat">
-            <strong>{t.limitUp}</strong>
-            <p>
-              {t.limitUp}: <b className="red-text">{stats.limitUp}</b> / {t.limitDown}: <b className="green-text">{stats.limitDown}</b>
-            </p>
-          </div>
-          <div className="mini-stat">
-            <strong>{t.todayReturn}</strong>
-            <p className={stats.average >= 0 ? "red-text" : "green-text"}>{formatPercent(stats.average)}</p>
+          <div className="summary-card">
+            <h3>资产变化</h3>
+            <p>¥{formatMoney(review.beforeAsset)} → ¥{formatMoney(review.afterAsset)}</p>
           </div>
         </div>
-        <div className="breadth-chart">
-          <div className="chart-title">{t.breadth}</div>
-          <div className="bar-stage">
-            {stats.distribution.map((item) => (
-              <div className="bar-cell" key={item.label}>
-                <span>{item.value}</span>
-                <i className={item.positive ? "red-bar" : "green-bar"} style={{ height: `${(item.value / maxBar) * 86}%` }} />
-                <small>{item.label}</small>
+
+        <div className="modal-scroll">
+          <h3>骰子结算</h3>
+          <div className="dice-list">
+            {review.stockMoves.map((move) => (
+              <div className="dice-row" key={move.stockId}>
+                <strong>{stockName(move.stockId)} {formatPercent(move.change)}</strong>
+                <span>新闻：{newsImpactText[move.newsImpact]}，单骰成功率 {Math.round(move.successProbability * 100)}%</span>
+                <span>基础 {move.baseDice} 骰 + AI {move.agentModifiers.reduce((sum, item) => sum + item.value, 0)} = {move.finalDice} 骰</span>
+                <span>掷骰：{move.rolls.join(" / ")}，成功 {move.successes} 个，净成功 {move.successes - (move.finalDice - move.successes)} 个</span>
               </div>
             ))}
           </div>
-        </div>
-        <div className="rating-card">
-          <h2>{t.marketRating}</h2>
-          <div className="rating-ring" style={{ "--score": `${stats.rating * 10}%` } as CSSProperties}>
-            <strong>{stats.rating.toFixed(1)}</strong>
-            <span>{"\u5206"}</span>
-          </div>
-          <b>{t.suggestion}</b>
-          <p>{stats.rating >= 5 ? "\u5927\u76d8\u9707\u8361\uff0c\u9002\u5f53\u53c2\u4e0e" : "\u98ce\u9669\u504f\u9ad8\uff0c\u63a7\u5236\u4ed3\u4f4d"}</p>
-        </div>
-      </div>
-      <div className="index-grid">
-        {indexCards.map((card, index) => (
-          <div className="index-card" key={card.name}>
-            <div>
-              <strong>{card.name}</strong>
-              <span className={card.change >= 0 ? "red-text" : "green-text"}>
-                {card.value.toFixed(2)} {formatPercent(card.change)}
-              </span>
-            </div>
-            <Sparkline stock={stocks[index % stocks.length]} day={day + index} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
 
-function Sparkline({ stock, day }: { stock: Stock; day: number }) {
-  const points = getKline(stock, day).map((item) => item.close);
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const range = Math.max(0.01, max - min);
-  const path = points
-    .map((value, index) => {
-      const x = (index / (points.length - 1)) * 180;
-      const y = 72 - ((value - min) / range) * 58;
-      return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  return (
-    <svg className="sparkline" viewBox="0 0 180 80" aria-hidden="true">
-      <path d={path} />
-      <line x1="0" x2="180" y1="38" y2="38" />
-    </svg>
-  );
-}
-
-function StockTable({
-  stocks,
-  day,
-  selectedStockId,
-  onSelect,
-}: {
-  stocks: Stock[];
-  day: number;
-  selectedStockId: StockId;
-  onSelect: (id: StockId) => void;
-}) {
-  return (
-    <section className="stock-table-section">
-      <div className="section-title">
-        <span />
-        <h2>{t.stockTable}</h2>
-      </div>
-      <div className="stock-tabs">
-        <button type="button">{"\u5168\u90e8\u80a1\u7968"}</button>
-        <button type="button">{"\u6caa\u6df1A\u80a1"}</button>
-        <button type="button">{"\u521b\u4e1a\u677f"}</button>
-        <button type="button">{"\u79d1\u521b\u677f"}</button>
-      </div>
-      <div className="stock-table-wrap">
-        <table className="stock-table">
-          <thead>
-            <tr>
-              <th>{"\u5e8f\u53f7"}</th>
-              <th>{t.code}</th>
-              <th>{t.name}</th>
-              <th>{t.currentPrice}</th>
-              <th>{"\u6da8\u8dcc\u5e45(%)"}</th>
-              <th>{t.high}</th>
-              <th>{t.low}</th>
-              <th>{t.volume}</th>
-              <th>{t.turnover}</th>
-              <th>{t.marketValue}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stocks.map((stock, index) => {
-              const stats = getStockStats(stock, day);
-              const code = `${index < 2 ? "30" : "60"}0${index + 218}`;
+          <h3>AI 真实行动</h3>
+          <div className="review-list-compact">
+            {agentStates.map((state) => {
+              const agent = agents.find((item) => item.id === state.agentId);
               return (
-                <tr className={stock.id === selectedStockId ? "selected-row" : ""} key={stock.id} onClick={() => onSelect(stock.id)}>
-                  <td>{index + 1}</td>
-                  <td className="blue-text">{code}</td>
-                  <td className="blue-text">{stock.name}</td>
-                  <td className={stats.change >= 0 ? "red-text" : "green-text"}>{stock.price.toFixed(2)}</td>
-                  <td className={stats.change >= 0 ? "red-text" : "green-text"}>{(stats.change * 100).toFixed(2)}</td>
-                  <td>{stats.high.toFixed(2)}</td>
-                  <td>{stats.low.toFixed(2)}</td>
-                  <td>{formatMoney(stats.volume)}</td>
-                  <td>{(stats.volume * stock.price / 100000000).toFixed(2)}{"\u4ebf"}</td>
-                  <td>{(stats.volume * stock.price / 10000000).toFixed(2)}{"\u4ebf"}</td>
-                </tr>
+                <div className="truth-row" key={state.agentId}>
+                  <strong>{agent?.name}</strong>
+                  <span>{directionText[state.direction]} {stockName(state.targetStock)} / {strengthText[state.strength]}力度 / {speechModeText[state.speechMode]}</span>
+                </div>
               );
             })}
-          </tbody>
-        </table>
-      </div>
-    </section>
+          </div>
+        </div>
+
+        <button className="primary-button modal-confirm" type="button" onClick={onConfirm}>
+          确认
+        </button>
+      </section>
+    </div>
   );
 }
 
-function AssetSummary({ summary }: { summary: DaySummary | null }) {
-  if (!summary) return null;
-  const change = summary.afterAsset - summary.beforeAsset;
+function ReviewPanel({ review, news, agentStates }: { review: ReviewSummary | null; news: NewsEvent; agentStates: AgentState[] }) {
+  if (!review) {
+    return (
+      <section className="review-panel tavern-panel">
+        <h2>收盘复盘</h2>
+        <p>收盘后会揭示新闻真假、AI 真实行动、调查稳定性和完整骰子过程。</p>
+      </section>
+    );
+  }
+
   return (
-    <section className="settlement-panel">
+    <section className="review-panel active tavern-panel">
       <div className="panel-head">
+        <h2>D{review.day} 收盘复盘</h2>
+        <span>{review.newsResult}</span>
+      </div>
+      <p>新闻真相：{news.title} 实际影响 {stockName(news.target)}，方向为{news.effect === "positive" ? "利好" : "利空"}。</p>
+      <div className="review-columns">
         <div>
-          <h2>{t.settlement}</h2>
-          <p className="subtle">
-            {"\u7b2c"} {summary.day} {"\u4e2a\u4ea4\u6613\u65e5"}
-          </p>
+          <h3>AI 真实行动</h3>
+          {agentStates.map((state) => {
+            const agent = agents.find((item) => item.id === state.agentId);
+            return (
+              <div className="truth-row" key={state.agentId}>
+                <strong>{agent?.name}</strong>
+                <span>{directionText[state.direction]} {stockName(state.targetStock)} / {strengthText[state.strength]}力度 / {speechModeText[state.speechMode]}</span>
+              </div>
+            );
+          })}
         </div>
-        <strong className={change >= 0 ? "up" : "down"}>
-          {change >= 0 ? "+" : ""}{formatMoney(change)}
-        </strong>
+        <div>
+          <h3>调查记录</h3>
+          {review.investigations.length === 0 ? <p>今日没有使用信息卡。</p> : review.investigations.map((item, index) => (
+            <div className="truth-row" key={`${item.cardId}-${index}`}>
+              <strong>{item.cardName}</strong>
+              <span>{item.shownResult} / 复盘校验：{item.truthful ? "稳定" : "受干扰"}</span>
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="settlement-metrics">
-        <Metric label={t.beforeAsset} value={formatMoney(summary.beforeAsset)} />
-        <Metric label={t.afterAsset} value={formatMoney(summary.afterAsset)} />
-        <Metric label={t.assetChange} value={`${change >= 0 ? "+" : ""}${formatMoney(change)}`} tone={change >= 0 ? "up" : "down"} />
-      </div>
-      <div className="asset-list">
-        <h3>{t.assetList}</h3>
-        {summary.rows.map((row) => (
-          <div className="asset-row" key={`${row.label}-${row.quantity ?? 0}`}>
-            <span>
-              {row.label}
-              {row.quantity ? ` x ${row.quantity} @ ${row.price?.toFixed(2)}` : ""}
-            </span>
-            <strong>{formatMoney(row.value)}</strong>
+      <h3>骰子结算</h3>
+      <div className="dice-list">
+        {review.stockMoves.map((move) => (
+          <div className="dice-row" key={move.stockId}>
+            <strong>{stockName(move.stockId)} {formatPercent(move.change)}</strong>
+            <span>新闻：{newsImpactText[move.newsImpact]}，单骰成功率 {Math.round(move.successProbability * 100)}%</span>
+            <span>基础 {move.baseDice} 骰 + AI {move.agentModifiers.reduce((sum, item) => sum + item.value, 0)} = {move.finalDice} 骰</span>
+            <span>掷骰：{move.rolls.join(" / ")}，成功 {move.successes} 个，净成功 {move.successes - (move.finalDice - move.successes)} 个</span>
           </div>
         ))}
       </div>
-    </section>
-  );
-}
-
-function QuoteItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="quote-item">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function KlineChart({ candles }: { candles: Array<{ open: number; close: number; high: number; low: number }> }) {
-  const values = candles.flatMap((candle) => [candle.high, candle.low]);
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const range = Math.max(0.01, max - min);
-  const width = 640;
-  const height = 220;
-  const top = 20;
-  const bottom = 26;
-  const chartHeight = height - top - bottom;
-  const step = width / candles.length;
-  const candleWidth = Math.max(8, step * 0.46);
-  const y = (value: number) => top + ((max - value) / range) * chartHeight;
-
-  return (
-    <div className="kline-panel">
-      <div className="kline-header">
-        <span>{t.kline}</span>
-        <strong>{min.toFixed(2)} - {max.toFixed(2)}</strong>
+      <div className="review-footer">
+        <strong>资产变化：¥{formatMoney(review.beforeAsset)} → ¥{formatMoney(review.afterAsset)}</strong>
+        <span>{review.actions.length === 0 ? "今日没有交易动作。" : review.actions.join(" ")}</span>
       </div>
-      <svg className="kline-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t.kline}>
-        <line className="grid-line" x1="0" x2={width} y1={top} y2={top} />
-        <line className="grid-line" x1="0" x2={width} y1={top + chartHeight / 2} y2={top + chartHeight / 2} />
-        <line className="grid-line" x1="0" x2={width} y1={top + chartHeight} y2={top + chartHeight} />
-        {candles.map((candle, index) => {
-          const center = step * index + step / 2;
-          const isUp = candle.close >= candle.open;
-          const bodyTop = y(Math.max(candle.open, candle.close));
-          const bodyHeight = Math.max(3, Math.abs(y(candle.open) - y(candle.close)));
-          return (
-            <g key={`${candle.open}-${index}`}>
-              <line
-                className={isUp ? "candle-up" : "candle-down"}
-                x1={center}
-                x2={center}
-                y1={y(candle.high)}
-                y2={y(candle.low)}
-              />
-              <rect
-                className={isUp ? "candle-up" : "candle-down"}
-                height={bodyHeight}
-                width={candleWidth}
-                x={center - candleWidth / 2}
-                y={bodyTop}
-                rx="1"
-              />
-            </g>
-          );
-        })}
-      </svg>
-    </div>
+    </section>
   );
 }
