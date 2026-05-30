@@ -136,6 +136,67 @@ async def ai_speeches(req: _SpeechReq):
         return {"ok": False, "reason": str(exc)[:160]}
 
 
+# ── 今日新闻在线生成（接 DeepSeek）──
+class _NewsReq(BaseModel):
+    day: int = 1
+    # 每条: {stock(公司名/"大盘"), industry(行业), dir(+1利好/-1利空)}
+    items: list[dict] = []
+
+
+@app.post("/api/news")
+async def gen_news(req: _NewsReq):
+    """根据本地已锁定的(目标股/行业/方向)，让 DeepSeek 写出生动的财经新闻标题。
+
+    DeepSeek 只产出『文案』；目标股票、利好/利空、真假全部在前端本地决定，
+    并由本地结算逻辑生效——保证新闻紧扣真实个股、有游戏影响，而不是随机废话。
+    """
+    if not DEEPSEEK_API_KEY or not req.items:
+        return {"ok": False, "reason": "no_key_or_empty"}
+
+    system = (
+        "你是股票交易游戏《股票大亨》的财经新闻生成器。给你若干条目(公司名、行业、方向)，"
+        "为每条生成一句像真实财经快讯/小道消息的中文新闻标题：12~40字，具体有画面感"
+        "(谁、在哪、做了什么事)，自然地暗示给定方向(利好或利空)，但绝不出现'利好/利空'字样、"
+        "也不要透露真假。按输入顺序一一对应，严格只输出 JSON。"
+    )
+    items = [
+        {
+            "公司": it.get("stock", ""),
+            "行业": it.get("industry", ""),
+            "方向": "利好" if it.get("dir", 1) > 0 else "利空",
+        }
+        for it in req.items
+    ]
+    user = {
+        "今日第几天": req.day,
+        "条目": items,
+        "输出格式": {"news": [{"text": "新闻标题"}]},
+    }
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 1.1,
+        "max_tokens": 500,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            resp = await client.post(
+                DEEPSEEK_URL,
+                headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+                json=payload,
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            data = json.loads(content)
+            return {"ok": True, "news": data.get("news", [])}
+    except Exception as exc:  # 失败回退本地新闻库
+        return {"ok": False, "reason": str(exc)[:160]}
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """游戏主页 - 显示所有子服务状态"""
