@@ -17,13 +17,44 @@
 - 技能树面板
 """
 
+import json
+import os
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel
 
 _STATIC_DIR = Path(__file__).parent / "static"
+_ROOT_DIR = Path(__file__).parent.parent
+
+
+def _load_dotenv() -> None:
+    """极简 .env 加载（无第三方依赖），仅在变量未设置时注入。"""
+    for candidate in (_ROOT_DIR / ".env", Path.cwd() / ".env"):
+        if not candidate.exists():
+            continue
+        for line in candidate.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
+        break
+
+
+_load_dotenv()
+
+# DeepSeek 配置
+# 默认内置一个共享 key，方便队友零配置直接跑；如需用自己的 key，
+# 在项目根目录建 .env 写 DEEPSEEK_API_KEY=xxx 即可覆盖。
+# 注意：密钥仅在后端使用，绝不下发到前端。
+_DEFAULT_DEEPSEEK_KEY = "sk-d4a494037b7b4077a4091f8eef909b4c"
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "") or _DEFAULT_DEEPSEEK_KEY
+DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
+DEEPSEEK_MODEL = "deepseek-chat"
 
 app = FastAPI(
     title="Trading Client",
@@ -42,7 +73,67 @@ app.add_middleware(
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "client"}
+    return {"status": "ok", "service": "client", "deepseek": bool(DEEPSEEK_API_KEY)}
+
+
+# ── AI 交易员在线发言（接 DeepSeek）──
+class _SpeechReq(BaseModel):
+    day: int = 1
+    sentiment: str = ""
+    news: list[str] = []
+    stocks: list[str] = []
+    # 每个 agent: {name, persona, dir(真实方向), mode(发言策略)}
+    agents: list[dict] = []
+
+
+@app.post("/api/ai-speeches")
+async def ai_speeches(req: _SpeechReq):
+    """让 DeepSeek 为 6 个 AI 交易员各生成一句盘前公开发言。
+
+    重要：DeepSeek 只产出『公开发言文本』。真实方向/策略由前端本地决定后作为
+    上下文传入（仅用于让发言口吻一致），结算与识破判定全在本地，绝不由大模型决定。
+    """
+    if not DEEPSEEK_API_KEY:
+        return {"ok": False, "reason": "no_key"}
+
+    system = (
+        "你是股票交易桌游《股票大亨》的台词生成器。牌桌上有6个性格迥异的AI交易员，"
+        "每人盘前会公开说一句话。请依据每个交易员的 persona(性格)、dir(他内心真实看法)、"
+        "mode(发言策略：真心=如实说/虚张声势=夸大或装腔/反向喊话=故意说反话误导对手)，"
+        "为每人生成一句【公开发言】。要求：中文口语、12~30字、有鲜明性格、像真人在牌桌上互相试探，"
+        "可结合今日新闻与在场股票名。严格只输出 JSON。"
+    )
+    user = {
+        "今日第几天": req.day,
+        "今日市场情绪": req.sentiment,
+        "今日新闻": req.news,
+        "在场股票": req.stocks,
+        "交易员": req.agents,
+        "输出格式": {"speeches": [{"name": "交易员名", "message": "他说的一句话"}]},
+    }
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 1.2,
+        "max_tokens": 700,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            resp = await client.post(
+                DEEPSEEK_URL,
+                headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+                json=payload,
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            data = json.loads(content)
+            return {"ok": True, "speeches": data.get("speeches", [])}
+    except Exception as exc:  # 任何失败都让前端回退本地台词
+        return {"ok": False, "reason": str(exc)[:160]}
 
 
 @app.get("/", response_class=HTMLResponse)

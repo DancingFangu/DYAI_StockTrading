@@ -130,8 +130,15 @@ input[type=range]{flex:1;margin:0 16px;accent-color:var(--candle)}
 .stock-tbl tr.sel td{background:rgba(232,181,99,.1)}
 .code{font-family:monospace;color:var(--dim)}
 .up{color:var(--up)} .down{color:var(--down)}
-.kline-mini{display:inline-flex;align-items:flex-end;gap:1px;height:18px}
-.kline-mini i{width:3px;background:var(--dim);display:inline-block}
+/* 迷你 K 线（蜡烛图，稳定不随点击变化） */
+.kline{display:inline-flex;align-items:flex-start;gap:2px;height:24px;position:relative}
+.cdl{position:relative;width:5px;height:24px}
+.cdl .wk{position:absolute;left:2px;width:1px;background:currentColor}
+.cdl .bd{position:absolute;left:0;width:5px;border-radius:1px;background:currentColor}
+.cdl.u{color:var(--up)} .cdl.d{color:var(--down)}
+/* AI 调查结果（持续显示） */
+.ai-rev{margin-left:9px;font-size:.6rem;color:var(--rare-gold);line-height:1.35;max-width:138px;font-family:monospace}
+.ai-rev .k{color:var(--dim)}
 .pos-tag{font-size:.7rem;color:var(--candle)}
 
 /* 右：候选卡 */
@@ -290,14 +297,19 @@ const FACTIONS=[
 ];
 
 // 6 个 AI 对手（不显示流派标签，靠发言/调查/复盘去猜）
+// persona 仅用于喂给 DeepSeek 生成发言口吻；真实意图(_dir/_mode)仍由本地决定
 const AIS=[
-  {face:'🎩',name:'老K'},   {face:'🧔',name:'阿强'},
-  {face:'🔮',name:'神婆'},  {face:'🏄',name:'浪子'},
-  {face:'🤡',name:'小丑'},  {face:'🤖',name:'铁算盘'},
+  {face:'🎩',name:'老K',  persona:'老练沉稳的市场庄家，话少、爱给暗示、喜欢稳坐钓鱼台'},
+  {face:'🧔',name:'阿强', persona:'莽撞激进的赌徒，爱喊满仓梭哈、嗓门大、上头'},
+  {face:'🔮',name:'神婆', persona:'神神叨叨的玄学派，爱用直觉、预感和玄学说话'},
+  {face:'🏄',name:'浪子', persona:'追热点的短线浪人，跟风、爱蹭题材、语速快'},
+  {face:'🤡',name:'小丑', persona:'爱搅局、阴阳怪气、喜欢误导别人的捣蛋鬼'},
+  {face:'🤖',name:'铁算盘',persona:'冷静理性的量化派，只信数据和概率，说话像机器'},
 ];
 // 隐藏真实意图（结算用，调查卡可揭示）
 const DIRS=['看涨','看跌','观望'];
 const STRENGTH=['低','中','高'];
+const MODES=['真心','虚张声势','反向喊话'];   // 发言策略（识别语气卡可揭示）
 
 const STOCKS=[
   {code:'600301',name:'东海化工',price:24.1,chg:2.1,pos:500},
@@ -386,7 +398,13 @@ const CURIOS=[
 ];
 const CURIO_BY_ID=Object.fromEntries(CURIOS.map(c=>[c.id,c]));
 function hasCurio(id){return state.curios.includes(id);}
-function dailyMaxAp(){return 5+(hasCurio('CUR-04')?1:0);}
+function dailyMaxAp(){return 3+(hasCurio('CUR-04')?1:0);}   // 基础 3 行动点
+// 生成稳定的 K 线历史（9 个收盘价，末位=当前价），不随点击变化
+function buildHist(p){
+  const a=[]; let v=p*(0.88+Math.random()*0.24);
+  for(let i=0;i<8;i++){ a.push(+v.toFixed(2)); v*=1+(Math.random()-0.5)*0.07; }
+  a.push(+p.toFixed(2)); return a;
+}
 function leverage(){let L=1; if(hasCurio('CUR-07'))L=2; if(state.levBlessToday)L=Math.max(L,1.5); return L;}
 function buyingPower(){return state.cash*leverage();}
 // 买卖基础卡说明（常驻手牌）
@@ -397,7 +415,7 @@ const BASIC_DESC={
 
 const state={
   bank:100000, bringIn:80000, faction:null,
-  day:1, phase:'news', cash:80000, ap:5, maxAp:5, rank:2,
+  day:1, phase:'news', cash:80000, ap:3, maxAp:3, rank:2,
   selStock:0, speaking:-1, candidates:[], hand:[], pendingCard:null,
   curios:[], shopStock:[],                       // 奇物：已购 / 本局上架
   feeFreeToday:false, levBlessToday:false, firstInfoUsedToday:false,
@@ -423,6 +441,7 @@ function startRound(){
   state.cash=state.bringIn; state.day=1; state.phase='news';
   state.curios=[]; state.feeFreeToday=false; state.levBlessToday=false; state.firstInfoUsedToday=false;
   state.maxAp=dailyMaxAp(); state.ap=state.maxAp;
+  STOCKS.forEach(s=>{ s._hist=buildHist(s.price); });   // 初始化稳定 K 线
   // 本局奇物商店随机上架 4 件
   state.shopStock=CURIOS.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,4);
   $('#prep').style.display='none'; $('#game').classList.add('on');
@@ -483,6 +502,16 @@ function buyCurio(id){
   toast(`🛒 购入【${c.nm}】`);
   renderHud(); openShop();
 }
+// 调查到的信息（持续显示在小人右侧）
+function revText(a){
+  const r=a._rev; if(!r)return '';
+  const p=[];
+  if(r.dir)  p.push(`<span class="k">向</span>${r.dir}`);
+  if(r.mode) p.push(`<span class="k">语</span>${r.mode}`);
+  if(r.str)  p.push(`<span class="k">强</span>${r.str}`);
+  if(r.tgt)  p.push(`<span class="k">仓</span>${r.tgt}`);
+  return p.join('　');
+}
 function renderAI(){
   const stage=$('#aiStage');
   stage.querySelectorAll('.ai-row,.bubble').forEach(e=>e.remove());
@@ -495,7 +524,8 @@ function renderAI(){
     const pnl=(a._pnl||0);
     row.innerHTML=`<div class="${cls}" data-i="${i}">${a.face}
       <span class="name">${a.name}</span>
-      <span class="pnl ${pnl>=0?'up':'down'}">${pnl>=0?'+':''}${pnl}%</span></div>`;
+      <span class="pnl ${pnl>=0?'up':'down'}">${pnl>=0?'+':''}${pnl}%</span></div>
+      <span class="ai-rev">${revText(a)}</span>`;
     stage.appendChild(row);
     row.querySelector('.ai-sprite').onclick=()=>onAIClick(i);
   });
@@ -532,14 +562,30 @@ function renderNews(){
     return `<div class="news-item"><span class="bull">●</span><span class="txt">${n.text}</span>${tag}</div>`;
   }).join('');
 }
+function renderKline(s){
+  const h=s._hist||buildHist(s.price);
+  const H=24;
+  const cands=[];
+  for(let i=1;i<h.length;i++){
+    const o=h[i-1], c=h[i];
+    cands.push({o,c,hi:Math.max(o,c)*1.008, lo:Math.min(o,c)*0.992});
+  }
+  const allLo=Math.min(...cands.map(x=>x.lo)), allHi=Math.max(...cands.map(x=>x.hi));
+  const span=(allHi-allLo)||1, y=v=>H*(v-allLo)/span;
+  return `<span class="kline">${cands.map(k=>{
+    const up=k.c>=k.o;
+    const bodyTop=H-y(Math.max(k.o,k.c)), bodyH=Math.max(1,Math.abs(y(k.c)-y(k.o)));
+    const wickTop=H-y(k.hi), wickH=Math.max(1,y(k.hi)-y(k.lo));
+    return `<span class="cdl ${up?'u':'d'}"><i class="wk" style="top:${wickTop}px;height:${wickH}px"></i><i class="bd" style="top:${bodyTop}px;height:${bodyH}px"></i></span>`;
+  }).join('')}</span>`;
+}
 function renderStocks(){
   $('#stockBody').innerHTML=STOCKS.map((s,i)=>{
-    const bars=Array.from({length:6},()=>`<i style="height:${4+Math.random()*14}px"></i>`).join('');
     return `<tr class="${i===state.selStock?'sel':''}" data-i="${i}">
       <td class="code">${s.code}</td><td>${s.name}</td>
       <td>${s.price.toFixed(2)}</td>
       <td class="${s.chg>=0?'up':'down'}">${s.chg>=0?'+':''}${s.chg.toFixed(1)}%</td>
-      <td><span class="kline-mini">${bars}</span></td>
+      <td>${renderKline(s)}</td>
       <td>${s.pos>0?`<span class="pos-tag">${s.pos}股</span>`:'<span style="color:var(--dim)">—</span>'}</td>
     </tr>`;}).join('');
   $('#stockBody').querySelectorAll('tr').forEach(r=>r.onclick=()=>{state.selStock=+r.dataset.i;renderStocks()});
@@ -627,19 +673,44 @@ function enterPhase(p){
   }
   renderAll();
 }
-function runSpeech(){
-  // 为每个 AI 暗定真实意图
-  AIS.forEach(a=>{a._dir=DIRS[(Math.random()*3)|0];a._str=STRENGTH[(Math.random()*3)|0];a._inv=false;a._pnl=((Math.random()*8-3)).toFixed(1);});
-  const lines=[
+async function runSpeech(){
+  // 为每个 AI 暗定真实意图（结算/识破用，DeepSeek 不决定这些）
+  AIS.forEach(a=>{
+    a._dir=DIRS[(Math.random()*3)|0];
+    a._str=STRENGTH[(Math.random()*3)|0];
+    a._mode=MODES[(Math.random()*3)|0];
+    a._inv=false; a._rev=null; a._pnl=((Math.random()*8-3)).toFixed(1);
+  });
+  // 本地兜底台词（DeepSeek 不可用时使用）
+  const local=[
     `${pick(STOCKS).name}今天稳，我已经布局了。`,
-    `别信新闻，那都是放烟雾。`,
-    `我今天空仓观望，你们随意。`,
-    `${pick(STOCKS).name}要出事，赶紧跑。`,
-    `嘿嘿，跟着我吃肉。`,
-    `数据不会骗人，我看多。`,
+    `怂什么？满仓干它！`,
+    `我掐指一算，今日宜进不宜退…`,
+    `${pick(STOCKS).name}是今天的妖股，冲！`,
+    `嘿嘿，你们都会亏的。`,
+    `数据显示，概率在我这边。`,
   ];
-  // 记录每个 AI 本轮发言，供之后点头像回看
-  AIS.forEach((a,i)=>a._speech=lines[i]);
+  AIS.forEach((a,i)=>a._speech=local[i]);
+  // 在线生成（DeepSeek），失败则保留本地台词
+  state.speaking=-1; state._bubble=null; renderAI();
+  toast('🃏 牌桌上的人正在开口…（连线 DeepSeek）');
+  try{
+    const body={
+      day:state.day,
+      sentiment:'',
+      news:(state._newsList||[]).map(n=>n.text),
+      stocks:STOCKS.map(s=>s.name),
+      agents:AIS.map(a=>({name:a.name,persona:a.persona,dir:a._dir,mode:a._mode})),
+    };
+    const r=await fetch('/api/ai-speeches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d.ok && Array.isArray(d.speeches)){
+      d.speeches.forEach(sp=>{const a=AIS.find(x=>x.name===sp.name); if(a&&sp.message)a._speech=String(sp.message);});
+    }else{
+      toast('⚠ DeepSeek 未启用，使用本地台词');
+    }
+  }catch(e){ toast('⚠ 连线失败，使用本地台词'); }
+  // 依次冒泡
   let i=0;
   const step=()=>{
     if(i>=AIS.length){
@@ -649,7 +720,7 @@ function runSpeech(){
     }
     state.speaking=i; state._bubble={i,text:AIS[i]._speech};
     renderAI();
-    i++; setTimeout(step,1300);
+    i++; setTimeout(step,1500);
   };
   step();
 }
@@ -681,6 +752,7 @@ function revealOneAI(){
   const cands=AIS.map((a,i)=>({a,i})).filter(x=>!x.a._inv && x.a._dir);
   if(!cands.length)return;
   const {a,i}=cands[(Math.random()*cands.length)|0]; a._inv=true;
+  a._rev=a._rev||{}; a._rev.dir=a._dir;
   state._bubble={i,text:`<span style="color:var(--rare-gold)">[内幕] 真实方向：${a._dir}</span>`};
   renderAI(); toast(`📡 内幕通讯器：${a.name} 今日真实方向【${a._dir}】`);
   clearTimeout(state._reviewT); state._reviewT=setTimeout(()=>{state._bubble=null;renderAI();},2800);
@@ -748,11 +820,12 @@ function onAIClick(i){
   if(state.pendingCard){
     const card=state.pendingCard;
     consumeInfoAp(); card._used=true; a._inv=true;
+    a._rev=a._rev||{};
     let info='';
-    if(card.id==='chacang')info=`昨日目标 ${pick(STOCKS).name} · ${a._dir}`;
-    else if(card.id==='yuqi')info=`发言模式：${['真心','虚张','反向喊话'][(Math.random()*3)|0]}`;
-    else if(card.id==='zhuiwen')info=`"其实我${a._dir}${pick(STOCKS).name}…"`;
-    else if(card.id==='zijin')info=`真实下注强度：${a._str}`;
+    if(card.id==='chacang'){const tg=pick(STOCKS).name; a._rev.tgt=tg; a._rev.dir=a._dir; info=`昨日目标 ${tg} · ${a._dir}`;}
+    else if(card.id==='yuqi'){a._rev.mode=a._mode; info=`发言模式：${a._mode}`;}
+    else if(card.id==='zhuiwen'){const tg=pick(STOCKS).name; a._rev.dir=a._dir; info=`"其实我${a._dir}${tg}…"`;}
+    else if(card.id==='zijin'){a._rev.str=a._str; info=`真实下注强度：${a._str}`;}
     state.pendingCard=null;
     state._bubble={i,text:`<span style="color:var(--rare-gold)">[调查] ${info}</span>`};
     renderAI(); renderHand();
@@ -883,6 +956,7 @@ function doSettle(){
   const rows=STOCKS.map(s=>{
     const before=s.price; s.price=+(s.price*(1+s._move/100)).toFixed(2);
     s.chg=s._move;
+    s._hist=[...(s._hist||buildHist(before)).slice(-8), s.price];  // 收盘追加一根K线
     if(s.pos>0)pnl+=s.pos*(s.price-before);
     return `<div class="settle-row"><span>${s.name}</span>
       <span class="${s._move>=0?'up':'down'}">${s._move>=0?'+':''}${s._move}%</span></div>`;
