@@ -229,16 +229,15 @@ input[type=range]{flex:1;margin:0 16px;accent-color:var(--candle)}
   box-shadow:0 0 0 max(100vw,100vh) rgba(0,0,0,.72);background:transparent;
   border:2px solid var(--candle);animation:tut-glow 1.2s infinite}
 @keyframes tut-glow{0%,100%{border-color:var(--candle)}50%{border-color:var(--rare-gold);border-width:3px}}
-#tut-bub{position:fixed;z-index:202;max-width:340px;background:rgba(30,22,16,.97);
-  border:1px solid var(--candle);border-radius:11px;padding:16px 18px;font-size:.92rem;
+#tut-bub{position:fixed;z-index:202;max-width:380px;background:rgba(30,22,16,.97);
+  border:1px solid var(--candle);border-radius:11px;padding:18px 20px;font-size:1.05rem;
   line-height:1.55;box-shadow:0 8px 28px rgba(0,0,0,.6)}
-#tut-bub .num{font-size:.68rem;color:var(--dim);letter-spacing:2px}
-#tut-bub .txt{margin:6px 0 12px}
+#tut-bub .num{font-size:.78rem;color:var(--dim);letter-spacing:2px}
+#tut-bub .txt{margin:8px 0 14px}
 #tut-bub .btns{display:flex;gap:8px;justify-content:flex-end}
-#tut-trigger{position:fixed;right:18px;bottom:210px;z-index:50;width:42px;height:42px;
-  border-radius:50%;border:1px solid var(--brass);background:linear-gradient(180deg,#3a2a1c,#241a10);
-  color:var(--candle);font-size:1.15rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5)}
-#tut-trigger:hover{box-shadow:0 0 14px rgba(232,181,99,.5)}
+.prep-tutorial{margin-top:12px;padding:9px 22px;font-size:1rem;color:var(--candle);
+  background:rgba(26,19,13,.45);border-color:var(--leather)}
+.prep-tutorial:hover{border-color:var(--brass);box-shadow:0 0 12px rgba(232,181,99,.22)}
 #musicToggle{position:fixed;left:12px;bottom:160px;z-index:55;width:40px;height:40px;border-radius:50%;
   border:1px solid var(--brass);background:linear-gradient(180deg,#3a2a1c,#241a10);color:var(--candle);
   font-size:1.1rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5)}
@@ -264,6 +263,8 @@ input[type=range]{flex:1;margin:0 16px;accent-color:var(--candle)}
     <div class="fac-grid" id="facGrid"></div>
     <div style="text-align:center;margin-top:22px">
       <button class="btn btn-primary" id="startBtn" disabled>进入酒馆 · 开始本局 ▸</button>
+      <br>
+      <button class="btn prep-tutorial" id="prepTut" type="button">先看新手教程</button>
     </div>
   </div>
 </div>
@@ -275,11 +276,11 @@ input[type=range]{flex:1;margin:0 16px;accent-color:var(--candle)}
     <span class="seg">第 <b id="hudDay">1</b>/7 日</span>
     <span class="phase-pill" id="hudPhase">盘前</span>
     <span class="seg">💰 <span class="cash" id="hudCash">¥80,000</span></span>
-    <span class="seg">🎫 <span class="ap-dots" id="hudAp"></span></span>
+    <span class="seg" id="hudApSeg" title="行动点：每天有限，使用卡牌或买卖交易都会消耗">🎫 <span class="ap-dots" id="hudAp"></span></span>
     <span class="seg" id="hudCurios"></span>
     <span class="spacer"></span>
     <button class="btn" id="shopBtn" style="padding:5px 14px;font-size:.82rem">🛒 奇物商店</button>
-    <button class="btn" id="inGameTut" style="padding:5px 6px;font-size:.82rem;width:32px" title="新手教程">❓</button>
+      <button class="btn btn-primary" id="inGameTut" style="padding:6px 14px;font-size:.95rem" title="新手教程">新手教程</button>
     <button class="btn" id="debugToggle" style="padding:5px 10px;font-size:.82rem" title="调试面板（也可按 ~ 键）">🐞 调试</button>
     <span class="seg">流派 <b id="hudFac">—</b></span>
     <span class="seg">本局排名 <b id="hudRank">—</b>/7</span>
@@ -322,7 +323,6 @@ input[type=range]{flex:1;margin:0 16px;accent-color:var(--candle)}
 <div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
 <div class="toast" id="toast"></div>
 <button id="musicToggle" title="BGM 开关">🎵</button>
-<button id="tut-trigger" title="新手教程">❓</button>
 <div id="tut-overlay"><div id="tut-bg"></div><div id="tut-spot"></div><div id="tut-bub"></div></div>
 
 <script>
@@ -1394,7 +1394,7 @@ function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');
 
 /* ---------- 斗地主风格 BGM（Web Audio 现场合成，无外部音频/无版权问题） ---------- */
 const Music=(()=>{
-  let ctx=null, master=null, enabled=true, timer=null, step=0;
+  let ctx=null, master=null, enabled=false, timer=null, step=0;
   // C 大调五声音阶的欢快循环旋律（4 小节 × 8 个八分音符）
   const mel=[
     392,392,440,523, 440,392,330,392,
@@ -1426,15 +1426,31 @@ const Music=(()=>{
       ctx=new (window.AudioContext||window.webkitAudioContext)();
       master=ctx.createGain(); master.gain.value=enabled?0.35:0; master.connect(ctx.destination);
       timer=setInterval(schedule, STEP*1000);
+      schedule();
     }catch(e){}
   }
-  function setEnabled(v){ enabled=v; if(master) master.gain.value=v?0.35:0; }
-  return { start, toggle(){ start(); setEnabled(!enabled); return enabled; }, get enabled(){return enabled;} };
+  function setEnabled(v){
+    enabled=v;
+    if(v) start();
+    if(master) master.gain.value=v?0.35:0;
+    if(ctx && ctx.suspend && !v) ctx.suspend();
+    if(ctx && ctx.resume && v) ctx.resume();
+  }
+  return { start, toggle(){ setEnabled(!enabled); return enabled; }, get enabled(){return enabled;} };
 })();
-// 首次任意点击启动音频（满足浏览器自动播放策略）
-document.addEventListener('click', ()=>Music.start(), {once:true});
 const _mt=$('#musicToggle');
-if(_mt) _mt.onclick=()=>{ const on=Music.toggle(); _mt.textContent=on?'🎵':'🔇'; _mt.classList.toggle('off',!on); };
+function updateMusicButton(){
+  if(!_mt)return;
+  const on=Music.enabled;
+  _mt.textContent=on?'🎵':'🔇';
+  _mt.title=on?'暂停音乐':'播放音乐';
+  _mt.setAttribute('aria-pressed', String(on));
+  _mt.classList.toggle('off',!on);
+}
+if(_mt){
+  updateMusicButton();
+  _mt.onclick=()=>{ Music.toggle(); updateMusicButton(); };
+}
 
 /* ── 新手教程（遮罩聚光 · 点击高亮区域推进）── */
 const Tutorial={
@@ -1448,6 +1464,7 @@ const Tutorial={
     // 游戏主界面（6 步）
     {sel:'#aiStage',text:'牌桌上的 <b>6 个 AI 对手</b>。发言阶段会依次亮气泡，点击头像可回看发言。<br>用信息卡调查后调查结果会持续显示在头像旁边。',side:'right'},
     {sel:'#newsCard',text:'<b>今日新闻</b>：每日随机 0~3 条，影响对应股票涨跌。是真还是假？<br>用「对照新闻」卡或「新闻预读」祝福核实。点股票名可看公司介绍帮助推理。',side:'bottom'},
+    {sel:'#hudApSeg',text:'这是<b>行动点</b>。每天默认只有 3 点，使用信息卡、激活祝福、买入或卖出都会消耗 1 点。<br>点数用完后就不能继续调查或交易，只能进入收盘结算。',side:'bottom'},
     {sel:'#stockBody',text:'本局随机的 <b>5 只股票</b>。点行选定后用底部买/卖卡下单。<br>K 线随交易日累积增长。激活动量/胜率卡后「信号」列显示箭头和星级。',side:'top'},
     {sel:'.cards-zone',text:'每日选牌阶段刷出 <b>3 张候选卡</b>，选 2 张进手牌。<br>信息卡（调查 AI）和祝福卡（当日 buff）混抽。本流派卡概率翻倍。',side:'left'},
     {sel:'#handDock',text:'<b>底部手牌坞</b>：买入/卖出基础卡常驻（永远在），已选的信息/祝福卡在此。<br>点卡使用→扣行动点→用掉即消失。行动点不足时整排禁用。',side:'top'},
@@ -1474,9 +1491,7 @@ const Tutorial={
     this._busy=true;  // 防双击
     // 步骤 4（开始按钮）→ 自动进入游戏，再继续教程
     if(this.step===3 && !this._gameStarted){
-      this._gameStarted=true;
-      if(!state.faction){ toast('请先选择一个流派再继续'); this._busy=false; return; }
-      startRound();  // 进入游戏主界面
+      this._ensureGameStarted();
       setTimeout(()=>{ this.step++; this._showStep(this.steps[this.step]); }, 600);
       return;
     }
@@ -1485,13 +1500,14 @@ const Tutorial={
   },
   _showStep(st){
     if(!st){ this.done(); return; }
+    if(this.step>=4 && !this._gameStarted) this._ensureGameStarted();
     const el=document.querySelector(st.sel);
     if(!el){ this._busy=false; this.next(); return; }  // 元素不存在才跳过
     // 填充气泡
     const bu=$('#tut-bub');
     bu.innerHTML=`<div class="num">新手教程 · 第 ${this.step+1}/${this.steps.length} 步</div>
       <div class="txt">${st.text}</div>
-      <div class="btns"><button class="btn" id="tutSkip" style="font-size:.8rem;padding:4px 12px">跳过教程</button></div>`;
+      <div class="btns"><button class="btn" id="tutSkip" style="font-size:.92rem;padding:6px 14px">跳过教程</button></div>`;
     $('#tutSkip').onclick=()=>this.done();
     // 聚光圈定位
     const r=el.getBoundingClientRect();
@@ -1510,6 +1526,15 @@ const Tutorial={
     // 10ms 后允许点击推进（防本步的 click 事件冒泡立即触发下一步）
     setTimeout(()=>{this._busy=false;},50);
   },
+  _ensureGameStarted(){
+    this._gameStarted=true;
+    if(!state.faction){
+      state.faction='def';
+      const first=document.querySelector('#facGrid .fac-card[data-f="def"]');
+      if(first) first.classList.add('sel');
+    }
+    if(!$('#game').classList.contains('on')) startRound();
+  },
   done(){
     $('#tut-overlay').classList.remove('on'); $('#tut-spot').style.display='none';
     $('#tut-bub').style.display='none'; this.step=-1; this._busy=false; this._gameStarted=false;
@@ -1518,8 +1543,8 @@ const Tutorial={
 };
 // 绑定外部触发按钮（DOM 已就绪，直接绑）
 (function bindTut(){
-  const tt=document.getElementById('tut-trigger');
-  if(tt) tt.addEventListener('click', ()=>Tutorial.start(false));
+  const pt=document.getElementById('prepTut');
+  if(pt) pt.addEventListener('click', ()=>Tutorial.start(false));
   const ig=document.getElementById('inGameTut');
   if(ig) ig.addEventListener('click', ()=>Tutorial.start(true));
 })();

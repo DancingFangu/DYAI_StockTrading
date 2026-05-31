@@ -1,0 +1,79 @@
+[2m下午3:05:39[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to load url /src/App.tsx (resolved id: D:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx) in D:/Damn/个人事项/AI Trying/DYAI/web/src/main.tsx. Does the file exist?
+[2m下午3:32:46[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to load url /src/App.tsx (resolved id: D:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx) in D:/Damn/个人事项/AI Trying/DYAI/web/src/main.tsx. Does the file exist?
+[2m下午3:38:55[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to load url /src/App.tsx (resolved id: D:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx) in D:/Damn/个人事项/AI Trying/DYAI/web/src/main.tsx. Does the file exist?
+[2m下午3:42:56[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+D:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx:1058:68: ERROR: The character ">" is not valid inside a JSX element
+[2m下午3:42:56[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+D:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx:1058:68: ERROR: The character ">" is not valid inside a JSX element[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mD:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx[39m:1058:68
+[33m  
+  [33mThe character ">" is not valid inside a JSX element[33m
+  1056|        </div>
+  1057|        <div className="review-footer">
+  1058|          <strong>资产变化：¥{formatMoney(review.beforeAsset)} -> ¥{formatMoney(review.afterAsset)}</strong>
+     |                                                                      ^
+  1059|          <span>{review.actions.length === 0 ? "今日没有交易动作。" : review.actions.join(" ")}</span>
+  1060|        </div>
+  [39m
+      at failureErrorWithLog (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:1472:15)
+      at D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:563:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)
+      at Readable.push (node:internal/streams/readable:394:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m下午3:43:09[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to load url /src/styles.css (resolved id: D:/Damn/个人事项/AI Trying/DYAI/web/src/styles.css) in D:/Damn/个人事项/AI Trying/DYAI/web/src/main.tsx. Does the file exist?
+[2m下午3:43:09[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+D:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx:1058:68: ERROR: The character ">" is not valid inside a JSX element
+[2m下午3:43:09[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+D:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx:1058:68: ERROR: The character ">" is not valid inside a JSX element[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mD:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx[39m:1058:68
+[33m  
+  [33mThe character ">" is not valid inside a JSX element[33m
+  1056|        </div>
+  1057|        <div className="review-footer">
+  1058|          <strong>资产变化：¥{formatMoney(review.beforeAsset)} -> ¥{formatMoney(review.afterAsset)}</strong>
+     |                                                                      ^
+  1059|          <span>{review.actions.length === 0 ? "今日没有交易动作。" : review.actions.join(" ")}</span>
+  1060|        </div>
+  [39m
+      at failureErrorWithLog (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:1472:15)
+      at D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:563:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)
+      at Readable.push (node:internal/streams/readable:394:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m下午3:45:22[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+D:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx:1058:68: ERROR: The character ">" is not valid inside a JSX element
+[2m下午3:45:22[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+D:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx:1058:68: ERROR: The character ">" is not valid inside a JSX element[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mD:/Damn/个人事项/AI Trying/DYAI/web/src/App.tsx[39m:1058:68
+[33m  
+  [33mThe character ">" is not valid inside a JSX element[33m
+  1056|        </div>
+  1057|        <div className="review-footer">
+  1058|          <strong>资产变化：¥{formatMoney(review.beforeAsset)} -> ¥{formatMoney(review.afterAsset)}</strong>
+     |                                                                      ^
+  1059|          <span>{review.actions.length === 0 ? "今日没有交易动作。" : review.actions.join(" ")}</span>
+  1060|        </div>
+  [39m
+      at failureErrorWithLog (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:1472:15)
+      at D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (D:\Damn\个人事项\AI Trying\DYAI\web\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:563:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)
+      at Readable.push (node:internal/streams/readable:394:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)

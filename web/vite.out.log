@@ -1,0 +1,70 @@
+
+> dev
+> vite --host 127.0.0.1 --port 5173
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m245[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
+[2m下午1:26:51[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:28:24[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:28:33[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:29:57[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:30:14[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:31:16[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:31:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:32:26[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:32:43[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:34:33[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:36:18[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:36:18[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:37:45[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:37:59[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:38:11[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:38:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:43:07[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:43:32[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:43:41[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:43:54[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:44:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:47:39[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:48:01[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:48:10[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:51:38[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午1:51:56[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午1:52:03[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午3:05:39[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午3:08:21[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午3:08:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午3:10:48[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午3:11:24[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午3:11:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午3:32:46[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午3:36:15[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午3:38:55[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午3:42:56[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午3:43:09[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午3:45:22[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午3:45:56[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午3:51:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午4:01:10[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午4:17:54[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午4:18:11[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午4:18:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午4:21:38[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午4:22:16[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午4:22:31[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午4:22:54[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午4:23:19[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午4:30:55[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午4:31:16[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午4:31:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午4:35:47[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m
+[2m下午4:39:16[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午4:39:27[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午4:39:38[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午9:50:50[22m [36m[1m[vite][22m[39m changed tsconfig file detected: D:\Damn\个人事项\AI Trying\DYAI\web\tsconfig.json - Clearing cache and forcing full-reload to ensure TypeScript is compiled with updated config values.
+[2m下午9:50:50[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m下午9:50:50[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/main.tsx[22m
+[2m下午9:50:50[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/App.tsx[22m
+[2m下午9:50:50[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/styles.css[22m

@@ -1,0 +1,19 @@
+API Key
+
+aggressive_speculator
+sk-5d984d7a03f54c9998eb8ddbc0fced6f
+
+conservative_trader
+sk-b1d61905ffe744ae9cbb39f8215ae3c6
+
+contrarian_trader
+sk-ccbd4727ecab44f9904baeb47e9aa34c
+
+news_trader
+sk-e7faba108f7e4a80bd04fd0d7171cbeb
+
+trend_follower
+sk-c9fce5a746bf40a0b7f3744efb70a01d
+
+value_investor
+sk-b22116b92a124001ba946fab32de27fe
